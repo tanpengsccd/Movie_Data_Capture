@@ -63,7 +63,7 @@ class Parser:
         pass
 
     def scrape(self, number, core: None):
-        """ 刮削番号
+        """ ❤️刮削番号
         """
         # 每次调用，初始化参数
         self.init()
@@ -72,7 +72,7 @@ class Parser:
         return result
 
     def search(self, number):
-        """ 查询番号
+        """ ❤️查询番号
 
         查询主要流程:
         1. 获取 url
@@ -85,6 +85,7 @@ class Parser:
             self.detailurl = self.specifiedUrl
         else:
             self.detailurl = self.queryNumberUrl(number)
+        print('[+]sourceURL:',self.detailurl)
         if not self.detailurl:
             return 404
         htmltree = self.getHtmlTree(self.detailurl)

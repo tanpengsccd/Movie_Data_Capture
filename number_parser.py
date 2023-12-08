@@ -10,7 +10,7 @@ G_spat = re.compile(
     "(-|_)(fhd|hd|sd|1080p|720p|4K|x264|x265|uncensored|hack|leak)",
     re.IGNORECASE)
 
-
+# TODO: 核心功能❤️ 提取番号的函数 
 def get_number(debug: bool, file_path: str) -> str:
     """
     从文件路径中提取番号 from number_parser import get_number

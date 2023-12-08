@@ -28,7 +28,7 @@ class Avsox(Parser):
             number = upnum.replace('FC2', 'FC2-PPV')
             self.number = number
         qurySiteTree = self.getHtmlTree('https://tellme.pw/avsox')
-        site = self.getTreeElement(qurySiteTree, '//div[@class="container"]/div/a/@href')
+        site = self.getTreeElement(qurySiteTree, '//div[@class="container"]/div/a/@href') # 获取最新网址
         self.searchtree = self.getHtmlTree(site + '/cn/search/' + number)
         result1 = self.getTreeElement(self.searchtree, '//*[@id="waterfall"]/div/a/@href')
         if result1 == '' or result1 == 'null' or result1 == 'None' or result1.find('movie') == -1:
@@ -43,7 +43,7 @@ class Avsox(Parser):
 
     def getNum(self, htmltree):
         new_number = self.getTreeElement(htmltree, self.expr_number)
-        if new_number.upper() != self.number.upper():
+        if new_number.upper().replace('_','-') != self.number.upper():
             raise ValueError('number not found in ' + self.source)
         self.originalnum = new_number
         if 'FC2-PPV' in new_number.upper():

@@ -1,10 +1,20 @@
-import os
+# 处理配置文件的工具类 
+# TODO 
+# 要直接将INI文件解析为嵌套的pydantic模型，您需要进行一些额外的处理。这是因为pydantic本身并不直接支持从INI文件解析数据。你需要先使用configparser或其他方式来读取INI文件，然后将读取的数据转换为适合pydantic模型的格式。
+# 以下是如何实现这一过程的示例：
+# 读取INI文件：使用configparser读取INI文件。
+# 转换数据格式：将从INI文件获取的数据转换为一个字典，其中键是section名，值是该section下的键值对的字典。
+# 实例化pydantic模型：使用转换后的字典来实例化你的pydantic模型。
+
+from enum import Enum
+import os   
 import re
 import sys
 import configparser
 import time
 import typing
 from pathlib import Path
+from glom import glom, Coalesce
 
 G_conf_override = {
     # index 0 save Config() first instance for quick access by using getInstance()
@@ -13,14 +23,39 @@ G_conf_override = {
     # no need anymore
 }
 
-
+# 为了方便在各个模块中快速访问配置，使用单例模式，但是为了方便单元测试，不使用真正的单例模式，而是使用 __init__.py
 def getInstance():
     if isinstance(G_conf_override[0], Config):
         return G_conf_override[0]
     return Config()
 
+class Main_Mode(Enum):
+    Scraping = 1
+    Organizing = 2
+    ScrapingInAnalysisFolder = 3
 
+    def describe(self):
+        return f"This Main Mode is {self.name}"
+    @staticmethod
+    def from_value(mode):
+        # 检查 mode 是否为数字字符串并转换为整数
+        if isinstance(mode, str) and mode.isdigit():
+            mode = int(mode)
+            
+        if isinstance(mode, int):
+            # 如果 mode 是 int，直接通过值初始化
+            return Main_Mode(mode)
+        elif isinstance(mode, str):
+            # 如果 mode 是 str，首先将其标准化，然后尝试通过名称初始化
+            mode_normalized = mode.capitalize().replace(' ', '')
+            return Main_Mode[mode_normalized]
+        else:
+            raise ValueError(f"Invalid mode: {mode}")
+
+
+# 读取配置文件 https://github.com/yoshiko2/Movie_Data_Capture/wiki/%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6
 class Config:
+    
     def __init__(self, path: str = "config.ini"):
         path_search_order = (
             Path(path),
@@ -162,15 +197,19 @@ class Config:
                 print(f"[!]Set config override [{sec_name}]{key_name}={val}  by cmd='{cmd}'")
             self.conf.set(sec_name, key_name, val)
 
-    def main_mode(self) -> int:
+    def main_mode(self) -> Main_Mode:
+
         try:
-            return self.conf.getint("common", "main_mode")
+            mode = self.conf.get("common", "main_mode")
+            # mode 可能是 value 或者 name
+            return Main_Mode.from_value(mode)
         except ValueError:
             self._exit("common:main_mode")
 
     def source_folder(self) -> str:
         return self.conf.get("common", "source_folder").replace("\\\\", "/").replace("\\", "/")
-
+    def test_movie_list(self) -> str:
+        return self.conf.get("common", "test_movie_list").replace("\\\\", "/").replace("\\", "/")
     def failed_folder(self) -> str:
         return self.conf.get("common", "failed_output_folder").replace("\\\\", "/").replace("\\", "/")
 
@@ -224,10 +263,10 @@ class Config:
 
     def anonymous_fill(self) -> bool:
         return self.conf.getint("common", "anonymous_fill")
-
+    # 获取高级睡眠模式的停止计数器
     def stop_counter(self) -> int:
         return self.conf.getint("advenced_sleep", "stop_counter", fallback=0)
-
+    # 获取 高级睡眠模式 运行间隔时间 返回值单位为秒
     def rerun_delay(self) -> int:
         value = self.conf.get("advenced_sleep", "rerun_delay")
         if not (isinstance(value, str) and re.match(r'^[\dsmh]+$', value, re.I)):

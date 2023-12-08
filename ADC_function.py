@@ -20,8 +20,18 @@ from cloudscraper import create_scraper
 
 # project wide
 import config
+# 遍历文件夹路径 
+def get_file_list(path: str) -> typing.List[str]:
+    """
+    遍历文件夹路径
+    """
+    file_list = []
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            file_list.append(os.path.join(root, file))
+    return file_list
 
-
+# 通过xpath获取网页内容
 def get_xpath_single(html_code: str, xpath):
     html = etree.fromstring(html_code, etree.HTMLParser())
     result1 = str(html.xpath(xpath)).strip(" ['']")
@@ -30,7 +40,7 @@ def get_xpath_single(html_code: str, xpath):
 
 G_USER_AGENT = r'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/100.0.4896.133 Safari/537.36'
 
-
+# 通过get方式获取网页内容
 def get_html(url, cookies: dict = None, ua: str = None, return_type: str = None, encoding: str = None, json_headers=None):
     """
     网页请求核心函数
@@ -73,7 +83,7 @@ def get_html(url, cookies: dict = None, ua: str = None, return_type: str = None,
         print('[-]Connect Failed! Please check your Proxy or Network!')
     raise Exception('Connect Failed')
 
-
+# 通过post方式获取网页内容
 def post_html(url: str, query: dict, headers: dict = None) -> requests.Response:
     config_proxy = config.getInstance().proxy()
     errors = ""
@@ -100,7 +110,7 @@ def post_html(url: str, query: dict, headers: dict = None) -> requests.Response:
 
 G_DEFAULT_TIMEOUT = 10  # seconds
 
-
+# with keep-alive feature
 class TimeoutHTTPAdapter(HTTPAdapter):
     def __init__(self, *args, **kwargs):
         self.timeout = G_DEFAULT_TIMEOUT
@@ -156,7 +166,7 @@ def get_html_session(url: str = None, cookies: dict = None, ua: str = None, retu
         print(f"[-]get_html_session() failed. {e}")
     return None
 
-
+# 通过浏览器获取网页内容
 def get_html_by_browser(url: str = None, cookies: dict = None, ua: str = None, return_type: str = None,
                         encoding: str = None, use_scraper: bool = False):
     config_proxy = config.getInstance().proxy()
@@ -194,7 +204,7 @@ def get_html_by_browser(url: str = None, cookies: dict = None, ua: str = None, r
         print(f'[-]get_html_by_browser() Failed! {e}')
     return None
 
-
+# 通过表单提交数据获取网页内容
 def get_html_by_form(url, form_select: str = None, fields: dict = None, cookies: dict = None, ua: str = None,
                      return_type: str = None, encoding: str = None):
     config_proxy = config.getInstance().proxy()

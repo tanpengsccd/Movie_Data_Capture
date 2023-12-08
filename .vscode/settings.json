@@ -1,0 +1,4 @@
+{
+    // 设置vscode 代理环境
+    // "http.proxy": "http://op.local:7890"
+}

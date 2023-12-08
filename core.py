@@ -9,6 +9,7 @@ from datetime import datetime
 # from videoprops import get_video_properties
 
 from ADC_function import *
+from config import Main_Mode
 from scraper import get_data_from_json
 from number_parser import is_uncensored
 from ImageProcessing import cutImage
@@ -29,7 +30,7 @@ def moveFailedFolder(filepath):
     link_mode = conf.link_mode()
     # 模式3或软连接，改为维护一个失败列表，启动扫描时加载用于排除该路径，以免反复处理
     # 原先的创建软连接到失败目录，并不直观，不方便找到失败文件位置，不如直接记录该文件路径
-    if conf.main_mode() == 3 or link_mode:
+    if conf.main_mode() == Main_Mode.ScrapingInAnalysisFolder or link_mode:
         ftxt = os.path.abspath(os.path.join(failed_folder, 'failed_list.txt'))
         print("[-]Add to Failed List file, see '%s'" % ftxt)
         with open(ftxt, 'a', encoding='utf-8') as flt:
@@ -847,6 +848,7 @@ def core_main(movie_path, number_th, oCC, specified_source=None, specified_url=N
     # 下面被注释的变量不需要
     # rootpath = os.getcwd
     number = number_th
+    # ❤️ 核心
     json_data = get_data_from_json(number, oCC, specified_source, specified_url)  # 定义番号
 
     # Return if blank dict returned (data not found)
@@ -940,7 +942,7 @@ def core_main(movie_path, number_th, oCC, specified_source=None, specified_url=N
     #  1: 刮削模式 / Scraping mode
     #  2: 整理模式 / Organizing mode
     #  3：不改变路径刮削
-    if conf.main_mode() == 1:
+    if conf.main_mode() == Main_Mode.Scraping:
         # 创建文件夹
         path = create_folder(json_data)
         if multi_part == 1:
@@ -1002,7 +1004,7 @@ def core_main(movie_path, number_th, oCC, specified_source=None, specified_url=N
                     json_data.get('actor_list'), liuchu, uncensored, hack, hack_word
                     , _4k, fanart_path, poster_path, thumb_path, iso)
 
-    elif conf.main_mode() == 2:
+    elif conf.main_mode() == Main_Mode.Organizing:
         # 创建文件夹
         path = create_folder(json_data)
         # 移动文件
@@ -1011,7 +1013,7 @@ def core_main(movie_path, number_th, oCC, specified_source=None, specified_url=N
         # Move subtitles
         move_subtitles(movie_path, path, multi_part, number, part, leak_word, c_word, hack_word)
 
-    elif conf.main_mode() == 3:
+    elif conf.main_mode() == Main_Mode.ScrapingInAnalysisFolder:
         path = str(Path(movie_path).parent)
         if multi_part == 1:
             number += part  # 这时number会被附加上CD1后缀

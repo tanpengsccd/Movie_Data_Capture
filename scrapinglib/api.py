@@ -8,7 +8,7 @@ import importlib
 
 
 def search(number, sources: str = None, **kwargs):
-    """ 根据`番号/电影`名搜索信息
+    """ ❤️根据`番号/电影`名搜索信息
 
     :param number: number/name  depends on type
     :param sources: sources string with `,` Eg: `avsox,javbus`
@@ -50,7 +50,7 @@ class Scraping:
     dbsite = None
     # 使用storyline方法进一步获取故事情节
     morestoryline = False
-
+    # ❤️
     def search(self, number, sources=None, proxies=None, verify=None, type='adult',
                specifiedSource=None, specifiedUrl=None,
                dbcookies=None, dbsite=None, morestoryline=False,
@@ -113,7 +113,7 @@ class Scraping:
                     json_data['actor'] = "Anonymous"
 
         return json_data
-
+    # ❤️
     def searchAdult(self, number, sources):
         if self.specifiedSource:
             sources = [self.specifiedSource]
@@ -127,9 +127,11 @@ class Scraping:
                 if self.debug:
                     print('[+]select', source)
                 try:
+                    print('[+]select', source)
                     module = importlib.import_module('.' + source, 'scrapinglib')
                     parser_type = getattr(module, source.capitalize())
                     parser: Parser = parser_type()
+                    # ❤️
                     data = parser.scrape(number, self)
                     if data == 404:
                         continue
