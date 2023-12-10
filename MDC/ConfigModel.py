@@ -23,11 +23,12 @@ from pydantic import BaseModel,Field, validator
 class ConfigModel(BaseModel):
     @staticmethod
     def getConfig(configIniPath:str):
-        '''静态方法:读取ini配置转为模型'''
+        """静态方法:读取ini配置转为模型"""
         # configparser 读取配置
         ConfigParser = configparser.ConfigParser()
         ConfigParser.read(configIniPath, encoding='utf-8')
-        # 字典推导式（Dictionary Comprehension）:格式通常是 {key: value for item in iterable}，其中iterable是一个可迭代对象，key和value是每次迭代产生的字典的键和值。
+        # 字典推导式（Dictionary Comprehension）:
+        # 格式通常是 {key: value for item in iterable}，其中iterable是一个可迭代对象，key和value是每次迭代产生的字典的键和值。
         config_data = {section: dict(ConfigParser.items(section)) for section in ConfigParser.sections()}
         # pydantic的 dict 转 模型实例 
         return ConfigModel(**config_data)

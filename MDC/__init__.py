@@ -3,7 +3,6 @@ from collections import namedtuple
 from itertools import groupby
 from operator import itemgetter
 from types import SimpleNamespace
-import Levenshtein
 import argparse
 import json
 import os
@@ -237,7 +236,7 @@ def close_logfile(logdir: str):
     echo "$(ls -1 $LOGDIR|wc -l) files in $LOGDIR"
     # 1932 files in /tmp/mlog
     mdc -zgic1 -d0 -m3 -o $LOGDIR
-    # python3 ./Movie_Data_Capture.py -zgic1 -o $LOGDIR
+    # python3 ./__init__.py -zgic1 -o $LOGDIR
     ls $LOGDIR
     # rm -rf $LOGDIR
     """
@@ -671,7 +670,7 @@ def main(args: tuple) -> Path:
     # 文件夹处理
         folder_path = G_conf.source_folder()
         if not isinstance(folder_path, str) or folder_path == '':
-            folder_path = os.path.abspath(".")
+            folder_path = os.path.abspath("..")
         
         # 读取 测试文件里的电影路径 或 文件夹下的所有文件
         def _get_movie_list():
@@ -759,7 +758,7 @@ def period(delta, pattern):
 # 首先读取配置文件的配置，然后读取命令行的配置，最后读取环境变量的配置
 G_conf = config.getInstance()
 
-G_ini_conf =  ConfigModel.getConfig(Path.cwd() / "config.ini")
+G_ini_conf =  ConfigModel.getConfig(Path.cwd() / "mdc/config.ini")
 # 代码入口
 if __name__ == '__main__':
     version = '6.6.7'

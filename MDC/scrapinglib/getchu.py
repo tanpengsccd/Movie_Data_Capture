@@ -4,7 +4,7 @@ import re
 import json
 from urllib.parse import quote
 
-from scrapinglib import httprequest
+from MDC.scrapinglib import httprequest
 from .parser import Parser
 
 

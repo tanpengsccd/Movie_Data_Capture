@@ -14,7 +14,6 @@ import configparser
 import time
 import typing
 from pathlib import Path
-from glom import glom, Coalesce
 
 G_conf_override = {
     # index 0 save Config() first instance for quick access by using getInstance()
@@ -60,6 +59,7 @@ class Config:
         path_search_order = (
             Path(path),
             Path.cwd() / "config.ini",
+            Path.cwd() / "MDC/config.ini",
             Path.home() / "mdc.ini",
             Path.home() / ".mdc.ini",
             Path.home() / ".mdc/config.ini",
