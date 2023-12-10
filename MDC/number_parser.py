@@ -1,6 +1,8 @@
 import os
 import re
 import sys
+from types import SimpleNamespace
+
 import config
 import typing
 
@@ -101,7 +103,16 @@ def get_number(debug: bool, file_path: str) -> str:
         if debug:
             print(f'[-]Number Parser exception: {e} [{file_path}]')
         return None
-        
+
+
+def get_number_tp(file_path: str) -> SimpleNamespace:
+    # 调用get_number()，返回一个命名空间，包含code和episode两个属性, 异常时 再次抛出异常
+    try:
+        code_number = get_number(True, file_path)
+        return SimpleNamespace(code=code_number, episode=None, isCn=False)
+    except Exception as e:
+        raise e
+
 
 
 # 按javdb数据源的命名规范提取number

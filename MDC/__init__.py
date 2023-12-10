@@ -18,9 +18,10 @@ import signal
 import platform
 from ConfigModel import ConfigModel
 from PathNameProcessor import PathNameProcessor
+import number_parser
 import config
 
-from config import Main_Mode 
+from config import Main_Mode
 from datetime import datetime, timedelta
 from lxml import etree
 from pathlib import Path
@@ -30,6 +31,7 @@ from scraper import get_data_from_json
 from ADC_function import file_modification_days, get_html, parallel_download_files
 from number_parser import get_number
 from core import core_main, core_main_no_net_op, moveFailedFolder, debug_print
+
 
 # 更新版本号
 def check_update(local_version):
@@ -44,8 +46,7 @@ def check_update(local_version):
         print("[*]======================================================")
 
 
-def argparse_function(ver: str,conf: config.Config) -> typing.Tuple[str, str, str, str, bool, bool, str, str]:
-    
+def argparse_function(ver: str, conf: config.Config) -> typing.Tuple[str, str, str, str, bool, bool, str, str]:
     parser = argparse.ArgumentParser(epilog=f"Load Config file '{conf.ini_path}'.")
     parser.add_argument("file", default='', nargs='?', help="Single Movie file path.")
     parser.add_argument("-p", "--path", default='', nargs='?', help="Analysis folder path.")
@@ -309,10 +310,12 @@ def close_logfile(logdir: str):
     # 100MB的日志文件能缩小到3.7MB。
     return filepath
 
-# 退出程序 
+
+# 退出程序
 def signal_handler(*args):
     print('[!]Ctrl+C detected, Exit.')
     os._exit(9)
+
 
 # 调试模式开关
 def sigdebug_handler(*args):
@@ -323,7 +326,6 @@ def sigdebug_handler(*args):
 
 # 获取待处理文件列表: 会按配置规则过滤不相关文件,新增失败文件列表跳过处理，及.nfo修改天数跳过处理，提示跳过视频总数，调试模式(-g)下详细被跳过文件，跳过小广告
 def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
-    
     debug = G_conf.debug()
     nfo_skip_days = G_conf.nfo_skip_days()
     link_mode = G_conf.link_mode()
@@ -370,7 +372,8 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
                 print('[!]Skip failed movie:', absf)
             continue
         is_sym = full_name.is_symlink()
-        if G_conf.main_mode() != Main_Mode.ScrapingInAnalysisFolder and (is_sym or (full_name.stat().st_nlink > 1 and not G_conf.scan_hardlink())):  # 短路布尔 符号链接不取stat()，因为符号链接可能指向不存在目标
+        if G_conf.main_mode() != Main_Mode.ScrapingInAnalysisFolder and (is_sym or (
+                full_name.stat().st_nlink > 1 and not G_conf.scan_hardlink())):  # 短路布尔 符号链接不取stat()，因为符号链接可能指向不存在目标
             continue  # 模式不等于3下跳过软连接和未配置硬链接刮削
         # 调试用0字节样本允许通过，去除小于120MB的广告'苍老师强力推荐.mp4'(102.2MB)'黑道总裁.mp4'(98.4MB)'有趣的妹子激情表演.MP4'(95MB)'有趣的臺灣妹妹直播.mp4'(15.1MB)
         movie_size = 0 if is_sym else full_name.stat().st_size  # 同上 符号链接不取stat()及st_size，直接赋0跳过小视频检测
@@ -425,6 +428,7 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
 
     return total
 
+
 # 生成失败文件夹
 def create_failed_folder(failed_folder: str):
     """
@@ -436,6 +440,7 @@ def create_failed_folder(failed_folder: str):
         except:
             print(f"[-]Fatal error! Can not make folder '{failed_folder}'")
             os._exit(0)
+
 
 # 删除空文件夹
 def rm_empty_folder(path):
@@ -451,7 +456,8 @@ def rm_empty_folder(path):
         except:
             pass
 
-def get_numbers(paths:typing.List[str]):
+
+def get_numbers(paths: typing.List[str]):
     """提取对应路径的番号+集数,集数可能含C(中文字幕)但非分集"""
 
     def get_number(filepath, absolute_path=False):
@@ -473,28 +479,43 @@ def get_numbers(paths:typing.List[str]):
         # 无番号 则设置空字符
         code_number = code_number if code_number else ''
         # 优先取尾部集数，无则取番号后的集数（几率低），都无则为空字符
-        episode = suffix_episode or episode_behind_code  or None
-        
+        episode = suffix_episode or episode_behind_code or None
+
         # return namedtuple('R', ['code', 'episode'])(code_number,episode) 
         return SimpleNamespace(code=code_number, episode=episode, isCn=False)
-    # paths 按 code_number 分组 为新字典
-    
-    pathList = list(map((lambda x:SimpleNamespace(path=x, result=get_number(x))),paths))
 
-    grouped_data = {k: list(v) for k, v in groupby(pathList, key=lambda x:x.result.code)}
-    
+    # paths 按 code_number 分组 为新字典
+    if G_ini_conf.common.only_jp_code_number:
+        path_list = list(map((lambda x: SimpleNamespace(path=x, result=get_number(x))), paths))
+    else:
+        path_list = list(map((lambda x: SimpleNamespace(path=x, result=number_parser.get_number_tp(x))), paths))
+    grouped_data = {k: list(v) for k, v in groupby(path_list, key=lambda x: x.result.code)}
+
     # 处理: 如果同code时, episode 有c无b,a ,则为中文字幕视频 并非episode
     for codeKey, itemList in grouped_data.items():
         for i in itemList:
-            if (ep := i.result.episode ) and ep is not None and ep.lower() == 'c' and not pydash.find(itemList, lambda x:  (x.result.episode or '').lower() in ['a','b'] ):
+            if (
+                    (ep := i.result.episode) and
+                    ep is not None and ep.lower() == 'c' and
+                    not pydash.find(itemList, lambda x: (x.result.episode or '').lower() in ['a', 'b'])
+            ):
                 i.result.episode = None
                 i.result.isCn = True
             else:
                 continue
-    
-    return pathList
+
+    return path_list
+
+
 # 生成数据并移动
 def create_data_and_move(movie_path: str, zero_op: bool, no_net_op: bool, oCC):
+    """
+生成数据并移动
+    :param movie_path:路径
+    :param zero_op:是否为 不操作
+    :param no_net_op:是否为 无网络操作
+
+    """
     # Normalized number, eg: 111xxx-222.mp4 -> xxx-222.mp4
     debug = config.getInstance().debug()
     # 如果配置项 test_movie_list 
@@ -519,11 +540,13 @@ def create_data_and_move(movie_path: str, zero_op: bool, no_net_op: bool, oCC):
         try:
             print(f"[!] [{n_number}] As Number Processing for '{movie_path}'")
             if zero_op:
+                # zero operation 大概是 不操作的意思吧...
                 return
             if n_number:
                 if no_net_op:
                     core_main_no_net_op(movie_path, n_number)
                 else:
+                    # 核心❤️
                     core_main(movie_path, n_number, oCC)
             else:
                 raise ValueError("number empty")
@@ -562,13 +585,14 @@ def create_data_and_move_with_custom_number(file_path: str, custom_number, oCC, 
             except Exception as err:
                 print('[!]', err)
 
+
 # 开始处理 启动的入口 ❤️
 def main(args: tuple) -> Path:
+    # 获取配置 zero_op 是否为 不操作:只获取番号, no_net_op  离线操作(不联网)
     (single_file_path, custom_number, logdir, regexstr, zero_op, no_net_op, search, specified_source,
      specified_url) = args
-    
-    folder_path = ""
 
+    folder_path = ""
 
     signal.signal(signal.SIGINT, signal_handler)
     if sys.platform == 'win32':
@@ -609,6 +633,7 @@ def main(args: tuple) -> Path:
     if G_conf.update_check():
         try:
             check_update(version)
+
             # Download Mapping Table, parallel version
             def fmd(f) -> typing.Tuple[str, Path]:
                 return ('https://raw.githubusercontent.com/yoshiko2/Movie_Data_Capture/master/MappingTable/' + f,
@@ -642,6 +667,7 @@ def main(args: tuple) -> Path:
 
     # create OpenCC converter
     ccm = G_conf.cc_convert_mode()
+    # 0: no convert, 1: t2s, 2: s2t
     try:
         oCC = None if ccm == 0 else OpenCC('t2s.json' if ccm == 1 else 's2t.json')
     except:
@@ -667,17 +693,18 @@ def main(args: tuple) -> Path:
             create_data_and_move_with_custom_number(single_file_path, custom_number, oCC,
                                                     specified_source, specified_url)
     else:
-    # 文件夹处理
+        # 文件夹处理
         folder_path = G_conf.source_folder()
         if not isinstance(folder_path, str) or folder_path == '':
             folder_path = os.path.abspath("..")
-        
+
         # 读取 测试文件里的电影路径 或 文件夹下的所有文件
         def _get_movie_list():
-            if (test_movie_list_path:= G_ini_conf.common.test_movie_list) and os.path.isfile(test_movie_list_path):
+            if (test_movie_list_path := G_ini_conf.common.test_movie_list) and os.path.isfile(test_movie_list_path):
                 return [line.strip() for line in open(test_movie_list_path, encoding='utf-8') if line.strip()]
             else:
                 return movie_lists(folder_path, regexstr)
+
         movie_list = _get_movie_list()
         # movie_list map 为 {'name':不含文件后缀的文件名,'path':文件路径,'size':文件大小,'time':文件创建时间,'ext':文件后缀}
         # movie_list = list(map(lambda x: {
@@ -688,20 +715,30 @@ def main(args: tuple) -> Path:
 
         # movie_list = list(map(lambda x: {'name': os.path.basename(x), 'levenshtein': Levenshtein.distance(x, regexstr),'path': x,}, movie_list))
         # 获取 番号,集数,路径  的字典->list
-        code_ep_paths =  get_numbers(movie_list)
-        [ print('|',i.path,'\n|    ',i.result) for i in code_ep_paths]
+        code_ep_paths = get_numbers(movie_list)
+        print('| 根据路径文件名识别的番号信息,请确认识别的信息无误')
+        [print('|', i.path, '\n|    ', i.result) for i in code_ep_paths]
+        print('|======================================================')
+
 
         count = 0
         count_all = str(len(movie_list))
         print('[+]Find', count_all, 'movies.')
         print('[*]======================================================')
+
+        # 终端输出 '是否继续?, y 或者 enter 案件继续,其他键退出'
+        if not input('[?]继续? ( ‘y’或者直接回车继续, 其他任意案件退出): ') in ('', 'y'):
+            print('[!]Exit.')
+            os._exit(0)
+
         # 获取停止计数,用于限制连续处理的文件数量
         stop_count = G_conf.stop_counter()
         if stop_count < 1:
             stop_count = 999999
         else:
             count_all = str(min(len(movie_list), stop_count))
-            
+        # 先获取遍历电影列表,提取不联网的影片信息, 比如: 分集,是否内嵌中文,是否泄漏版,是否去马赛克版
+
         for movie_path in movie_list:  # 遍历电影列表 交给core处理
             count = count + 1
             percentage = str(count / int(count_all) * 100)[:4] + '%'
@@ -731,6 +768,7 @@ def main(args: tuple) -> Path:
 
     return close_logfile(logdir)
 
+
 # 从日志获取 处理后的结果
 def getResultNumbers(logfile):
     """ 从日志获取 处理后的结果 
@@ -748,6 +786,7 @@ def getResultNumbers(logfile):
     except:
         return None, None, None
 
+
 # 日期转换
 def period(delta, pattern):
     d = {'d': delta.days}
@@ -755,10 +794,11 @@ def period(delta, pattern):
     d['m'], d['s'] = divmod(rem, 60)
     return pattern.format(**d)
 
+
 # 首先读取配置文件的配置，然后读取命令行的配置，最后读取环境变量的配置
 G_conf = config.getInstance()
 
-G_ini_conf =  ConfigModel.getConfig(Path.cwd() / "mdc/config.ini")
+G_ini_conf = ConfigModel.get_config(Path.cwd() / "mdc/config.ini")
 # 代码入口
 if __name__ == '__main__':
     version = '6.6.7'
@@ -766,13 +806,13 @@ if __name__ == '__main__':
     app_start_time = time.time()
 
     # Parse command line args and override config.ini
-    args = tuple(argparse_function(version,G_conf))
+    args = tuple(argparse_function(version, G_conf))
 
     # 高级睡眠模式: 自动周期运行
     # 间隔时间大于0 且 停止计数大于0
-    interval = G_ini_conf.advenced_sleep.rerun_delay # G_conf.rerun_delay()
+    interval = G_ini_conf.advenced_sleep.rerun_delay  # G_conf.rerun_delay()
 
-    if interval > 0 and  G_ini_conf.advenced_sleep.stop_counter > 0:
+    if interval > 0 and G_ini_conf.advenced_sleep.stop_counter > 0:
         while True:
             try:
                 # 开始处理 ❤️
@@ -782,23 +822,25 @@ if __name__ == '__main__':
                     # 未处理的个数
                     numberOfNotProcessed = numberOfScaned - numberOfProcessed
                     # 处理用时
-                    processTime = timedelta(seconds = time.time() - app_start_time)
-                    print(f'All movies:{numberOfScaned}  processed:{numberOfProcessed}  successes:{numberOfSuccess}  remain:{numberOfNotProcessed}' +
+                    processTime = timedelta(seconds=time.time() - app_start_time)
+                    print(
+                        f'All movies:{numberOfScaned}  processed:{numberOfProcessed}  successes:{numberOfSuccess}  remain:{numberOfNotProcessed}' +
                         '  Elapsed time {}'.format(
-                        period(processTime, "{d} day {h}:{m:02}:{s:02}") if processTime.days == 1
+                            period(processTime, "{d} day {h}:{m:02}:{s:02}") if processTime.days == 1
                             else period(processTime, "{d} days {h}:{m:02}:{s:02}") if processTime.days > 1
                             else period(processTime, "{h}:{m:02}:{s:02}")))
                     if numberOfNotProcessed == 0:
                         break
                     dateOfNextRun = datetime.now() + timedelta(seconds=interval)
-                    print(f'Next run time: {dateOfNextRun.strftime("%H:%M:%S")}, rerun_delay={interval}, press Ctrl+C stop run.')
+                    print(
+                        f'Next run time: {dateOfNextRun.strftime("%H:%M:%S")}, rerun_delay={interval}, press Ctrl+C stop run.')
                     time.sleep(interval)
                 else:
                     break
             except:
                 break
     else:
-    # 普通模式: 运行一次
+        # 普通模式: 运行一次
         # 开始处理
         main(args)
 

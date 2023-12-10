@@ -16,24 +16,23 @@ class RootConfig(BaseModel):
 '''
 
 import configparser
-from enum import Enum 
-from pydantic import BaseModel,Field, validator
+from enum import Enum
+from pydantic import BaseModel, Field, validator
 
 
 class ConfigModel(BaseModel):
     @staticmethod
-    def getConfig(configIniPath:str):
+    def get_config(config_ini_path: str):
         """静态方法:读取ini配置转为模型"""
         # configparser 读取配置
-        ConfigParser = configparser.ConfigParser()
-        ConfigParser.read(configIniPath, encoding='utf-8')
+        config_parser = configparser.ConfigParser()
+        config_parser.read(config_ini_path, encoding='utf-8')
         # 字典推导式（Dictionary Comprehension）:
         # 格式通常是 {key: value for item in iterable}，其中iterable是一个可迭代对象，key和value是每次迭代产生的字典的键和值。
-        config_data = {section: dict(ConfigParser.items(section)) for section in ConfigParser.sections()}
+        config_data = {section: dict(config_parser.items(section)) for section in config_parser.sections()}
         # pydantic的 dict 转 模型实例 
         return ConfigModel(**config_data)
-       
-     
+
     class CommonConfig(BaseModel):
         class Main_Mode(Enum):
             Scraping = 'scraping'
@@ -43,7 +42,7 @@ class ConfigModel(BaseModel):
         main_mode: Main_Mode
         source_folder: str
         test_movie_list: str = None
-        only_jp_code_number: int = Field(default=0)
+        only_jp_code_number: bool = False
         failed_output_folder: str
         success_output_folder: str
         link_mode: int
@@ -62,9 +61,9 @@ class ConfigModel(BaseModel):
         actor_only_tag: int
         sleep: int
         anonymous_fill: int
-        
+
         # 定制main_mode 字段 的验证器(解析器)
-        @validator('main_mode',pre=True)
+        @validator('main_mode', pre=True)
         def main_mode_valid(cls, v):
             if v == '1':
                 return cls.Main_Mode.Scraping
@@ -72,11 +71,11 @@ class ConfigModel(BaseModel):
                 return cls.Main_Mode.Organizing
             elif v == '3':
                 return cls.Main_Mode.ScrapingInAnalysisFolder
-            elif isinstance(v,str) and v.lower() in cls.Main_Mode.__members__:
+            elif isinstance(v, str) and v.lower() in cls.Main_Mode.__members__:
                 return cls.Main_Mode(v.lower())
             else:
                 raise ValueError('main_mode must be ' + ' or '.join([f'"{e.value}"' for e in cls.Main_Mode]))
-        
+
     class AdvencedSleepConfig(BaseModel):
         stop_counter: int = 0
         rerun_delay: int = 0
@@ -189,4 +188,3 @@ class ConfigModel(BaseModel):
     jellyfin: JellyfinConfig
     actor_photo: ActorPhotoConfig
     direct: DirectConfig
-    

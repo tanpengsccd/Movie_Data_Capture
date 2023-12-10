@@ -71,12 +71,13 @@ class PathNameProcessor:
             pattern_episodes_number = r'(?<!\d)\d$'
             episode = re.findall(pattern_episodes_number, origin_name)[-1]
             origin_name = re.sub(pattern_episodes_number, "", origin_name)
+
         with fuckit:
             # 零宽断言获取尾部字幕 剧集数 abc
             pattern_episodes_alpha = r'(?<![a-zA-Z])[a-zA-Z]$'
             episode = re.findall(pattern_episodes_alpha, origin_name)[-1]
             origin_name = re.sub(pattern_episodes_alpha, "", origin_name)
-        return episode, origin_name
+            return episode, origin_name
 
     @staticmethod
     def extract_code(origin_name):
