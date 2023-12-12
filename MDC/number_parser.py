@@ -42,7 +42,7 @@ def get_number(debug: bool, file_path: str) -> str:
     filepath = os.path.basename(file_path)
     # debug True 和 False 两块代码块合并，原因是此模块及函数只涉及字符串计算，没有IO操作，debug on时输出导致异常信息即可
     try:
-        # 先对自定义正则进行匹配
+        # 先对自定义正则进行匹配, 在 ini文件中 number_regexs 里配置
         if config.getInstance().number_regexs().split().__len__() > 0:
             for regex in config.getInstance().number_regexs().split():
                 try:
@@ -50,55 +50,78 @@ def get_number(debug: bool, file_path: str) -> str:
                         return re.search(regex, filepath).group()
                 except Exception as e:
                     print(f'[-]custom regex exception: {e} [{regex}]')
+        # 常见JAV番号匹配规则
+        if (file_number:=get_number_by_dict(filepath)) is not None:
+            return file_number
+        else:
+            # 移除广告字段字段
+            # 1.移除含有 域名的广告字段
+            partten_of_ads_host = r"[\w\.\-]+?\.(cc|com|net|me|club|jp|tv|xyz|biz|wiki|info|tw|us|de)@?"
+            # 2.移除含有 视频质量字段(视频质量以分析视频文件获取)
+            # 移除字母开头 清晰度相关度 字符
+            pattern_of_resolution_alphas = r'\b(SD|((F|U)|(Full|Ultra)[-_*. ~]?)?HD|BD|(blu[-_*. ~]?ray)|[hx]264|[hx]265|HEVC)\b'
+            # 数字开头的 清晰度相关度 字符
+            # 3. 移除日期字段
+            pattern_of_date = r'(?:-)(19[789]\d|20\d{2})(-?(0\d|1[012])-?(0[1-9]|[12]\d|3[01])?)?[-.]'
 
-        file_number = get_number_by_dict(filepath)
-        if file_number:
-            return file_number
-        elif '字幕组' in filepath or 'SUB' in filepath.upper() or re.match(r'[\u30a0-\u30ff]+', filepath):
-            filepath = G_spat.sub("", filepath)
-            filepath = re.sub("\[.*?\]","",filepath)
-            filepath = filepath.replace(".chs", "").replace(".cht", "")
-            file_number = str(re.findall(r'(.+?)\.', filepath)).strip(" [']")
-            return file_number
-        elif '-' in filepath or '_' in filepath:  # 普通提取番号 主要处理包含减号-和_的番号
-            filepath = G_spat.sub("", filepath)
-            filename = str(re.sub("\[\d{4}-\d{1,2}-\d{1,2}\] - ", "", filepath))  # 去除文件名中时间
-            lower_check = filename.lower()
-            if 'fc2' in lower_check:
-                filename = lower_check.replace('--', '-').replace('_', '-').upper()
-            filename = re.sub("[-_]cd\d{1,2}", "", filename, flags=re.IGNORECASE)
-            if not re.search("-|_", filename): # 去掉-CD1之后再无-的情况，例如n1012-CD1.wmv
-                return str(re.search(r'\w+', filename[:filename.find('.')], re.A).group())
-            file_number =  os.path.splitext(filename)
-            filename = re.search(r'[\w\-_]+', filename, re.A)
-            if filename:
-                file_number = str(filename.group())
-            else:
-                file_number = file_number[0]
+            pattern_of_resolution_numbers = r'(?<!\d)(4K|(1080[ip])|(720p)|(480p))'
             
-            new_file_number = file_number
-            if re.search("-c", file_number, flags=re.IGNORECASE):
-                new_file_number = re.sub("(-|_)c$", "", file_number, flags=re.IGNORECASE)
-            elif re.search("-u$", file_number, flags=re.IGNORECASE):
-                new_file_number = re.sub("(-|_)u$", "", file_number, flags=re.IGNORECASE)
-            elif re.search("-uc$", file_number, flags=re.IGNORECASE):
-                new_file_number = re.sub("(-|_)uc$", "", file_number, flags=re.IGNORECASE)
-            elif re.search("\d+ch$", file_number, flags=re.I):
-                new_file_number = file_number[:-2]
+            filepath = re.sub(partten_of_ads_host, "-", filepath, 0, re.IGNORECASE)
+            filepath = re.sub(pattern_of_resolution_alphas, "-", filepath, 0, re.IGNORECASE)
+            filepath = re.sub(pattern_of_resolution_numbers, "-", filepath, 0, re.IGNORECASE)
+            filepath = re.sub(pattern_of_date, "-", filepath)
+            
+            # 移除连续重复无意义符号-
+            filepath = re.sub(r"([-.])(\1+)", r"\1", filepath)
+            # 移除尾部无意义符号 方便识别剧集数
+            filepath = re.sub(r'[-.]+$', "", filepath)
+            # filepath = G_spat.sub("", filepath)
+            # TODO: 提取(移除)字段 leak uncensored 等 字段
+            
+            # 提取 动漫
+            if '字幕组' in filepath or 'SUB' in filepath.upper() or re.match(r'[\u30a0-\u30ff]+', filepath):
+                filepath = re.sub("\[.*?\]","",filepath)
+                filepath = filepath.replace(".chs", "").replace(".cht", "")
+                file_number = str(re.findall(r'(.+?)\.', filepath)).strip(" [']")
+                return file_number
+            elif '-' in filepath or '_' in filepath:  # 普通提取番号 主要处理包含减号-和_的番号
+                filename = str(re.sub("\[\d{4}-\d{1,2}-\d{1,2}\] - ", "", filepath))  # 去除文件名中时间
+                lower_check = filename.lower()
+                if 'fc2' in lower_check:
+                    filename = lower_check.replace('--', '-').replace('_', '-').upper()
+                filename = re.sub("[-_]cd\d{1,2}", "", filename, flags=re.IGNORECASE)
+                if not re.search("-|_", filename): # 去掉-CD1之后再无-的情况，例如n1012-CD1.wmv
+                    return str(re.search(r'\w+', filename[:filename.find('.')], re.A).group())
+                file_number =  os.path.splitext(filename)
+                filename = re.search(r'[\w\-_]+', filename, re.A)
+                if filename:
+                    file_number = str(filename.group())
+                else:
+                    file_number = file_number[0]
                 
-            return new_file_number.upper()
-        else:  # 提取不含减号-的番号，FANZA CID
-            # 欧美番号匹配规则
-            oumei = re.search(r'[a-zA-Z]+\.\d{2}\.\d{2}\.\d{2}', filepath)
-            if oumei:
-                return oumei.group()
-            try:
-                return str(
-                    re.findall(r'(.+?)\.',
-                               str(re.search('([^<>/\\\\|:""\\*\\?]+)\\.\\w+$', filepath).group()))).strip(
-                    "['']").replace('_', '-')
-            except:
-                return str(re.search(r'(.+?)\.', filepath)[0])
+                new_file_number = file_number
+                if re.search("-c", file_number, flags=re.IGNORECASE):
+                    new_file_number = re.sub("(-|_)c$", "", file_number, flags=re.IGNORECASE)
+                elif re.search("-u$", file_number, flags=re.IGNORECASE):
+                    new_file_number = re.sub("(-|_)u$", "", file_number, flags=re.IGNORECASE)
+                elif re.search("-uc$", file_number, flags=re.IGNORECASE):
+                    new_file_number = re.sub("(-|_)uc$", "", file_number, flags=re.IGNORECASE)
+                elif re.search("\d+ch$", file_number, flags=re.I):
+                    new_file_number = file_number[:-2]
+                    
+                return new_file_number.upper()
+            else:  # 提取不含减号-的番号，FANZA CID
+                # 欧美番号匹配规则
+                oumei = re.search(r'[a-zA-Z]+\.\d{2}\.\d{2}\.\d{2}', filepath)
+                if oumei:
+                    return oumei.group()
+                try:
+                    return str(
+                        re.findall(r'(.+?)\.',
+                                str(re.search('([^<>/\\\\|:""\\*\\?]+)\\.\\w+$', filepath).group()))).strip(
+                        "['']").replace('_', '-')
+                except:
+                    return str(re.search(r'(.+?)\.', filepath)[0])
     except Exception as e:
         if debug:
             print(f'[-]Number Parser exception: {e} [{file_path}]')
@@ -115,24 +138,27 @@ def get_number_tp(file_path: str) -> SimpleNamespace:
 
 
 
-# 按javdb数据源的命名规范提取number
-G_TAKE_NUM_RULES = {
-    'tokyo.*hot': lambda x: str(re.search(r'(cz|gedo|k|n|red-|se)\d{2,4}', x, re.I).group()),
-    'carib': lambda x: str(re.search(r'\d{6}(-|_)\d{3}', x, re.I).group()).replace('_', '-'),
-    '1pon|mura|paco': lambda x: str(re.search(r'\d{6}(-|_)\d{3}', x, re.I).group()).replace('-', '_'),
-    '10mu': lambda x: str(re.search(r'\d{6}(-|_)\d{2}', x, re.I).group()).replace('-', '_'),
-    'x-art': lambda x: str(re.search(r'x-art\.\d{2}\.\d{2}\.\d{2}', x, re.I).group()),
-    'xxx-av': lambda x: ''.join(['xxx-av-', re.findall(r'xxx-av[^\d]*(\d{3,5})[^\d]*', x, re.I)[0]]),
-    'heydouga': lambda x: 'heydouga-' + '-'.join(re.findall(r'(\d{4})[\-_](\d{3,4})[^\d]*', x, re.I)[0]),
-    'heyzo': lambda x: 'HEYZO-' + re.findall(r'heyzo[^\d]*(\d{4})', x, re.I)[0],
-    'mdbk': lambda x: str(re.search(r'mdbk(-|_)(\d{4})', x, re.I).group()),
-    'mdtm': lambda x: str(re.search(r'mdtm(-|_)(\d{4})', x, re.I).group()),
-    'caribpr': lambda x: str(re.search(r'\d{6}(-|_)\d{3}', x, re.I).group()).replace('_', '-'),
-}
+
 
 
 def get_number_by_dict(filename: str) -> typing.Optional[str]:
+    """ 按javdb数据源的命名规范提取number
+    """
     try:
+        # 按javdb数据源的命名规范提取number
+        G_TAKE_NUM_RULES = {
+            'tokyo.*hot': lambda x: str(re.search(r'(cz|gedo|k|n|red-|se)\d{2,4}', x, re.I).group()),
+            'carib': lambda x: str(re.search(r'\d{6}(-|_)\d{3}', x, re.I).group()).replace('_', '-'),
+            '1pon|mura|paco': lambda x: str(re.search(r'\d{6}(-|_)\d{3}', x, re.I).group()).replace('-', '_'),
+            '10mu': lambda x: str(re.search(r'\d{6}(-|_)\d{2}', x, re.I).group()).replace('-', '_'),
+            'x-art': lambda x: str(re.search(r'x-art\.\d{2}\.\d{2}\.\d{2}', x, re.I).group()),
+            'xxx-av': lambda x: ''.join(['xxx-av-', re.findall(r'xxx-av[^\d]*(\d{3,5})[^\d]*', x, re.I)[0]]),
+            'heydouga': lambda x: 'heydouga-' + '-'.join(re.findall(r'(\d{4})[\-_](\d{3,4})[^\d]*', x, re.I)[0]),
+            'heyzo': lambda x: 'HEYZO-' + re.findall(r'heyzo[^\d]*(\d{4})', x, re.I)[0],
+            'mdbk': lambda x: str(re.search(r'mdbk(-|_)(\d{4})', x, re.I).group()),
+            'mdtm': lambda x: str(re.search(r'mdtm(-|_)(\d{4})', x, re.I).group()),
+            'caribpr': lambda x: str(re.search(r'\d{6}(-|_)\d{3}', x, re.I).group()).replace('_', '-'),
+        }
         for k, v in G_TAKE_NUM_RULES.items():
             if re.search(k, filename, re.I):
                 return v(filename)

@@ -331,13 +331,9 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
     link_mode = G_conf.link_mode()
     file_type = G_conf.media_type().lower().split(",")
     trailerRE = re.compile(r'-trailer\.', re.IGNORECASE)
-    cliRE = None
-    if isinstance(regexstr, str) and len(regexstr):
-        try:
-            cliRE = re.compile(regexstr, re.IGNORECASE)
-        except:
-            pass
+    cliRE = re.compile(regexstr, re.IGNORECASE)  if isinstance(regexstr, str) and len(regexstr) else None
     failed_list_txt_path = Path(G_conf.failed_folder()).resolve() / 'failed_list.txt'
+    # 提取历史刮削失败的路径
     failed_set = set()
     if (G_conf.main_mode() == Main_Mode.ScrapingInAnalysisFolder or link_mode) and not G_conf.ignore_failed_list():
         try:
@@ -358,11 +354,15 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
     source = Path(source_folder).resolve()
     skip_failed_cnt, skip_nfo_days_cnt = 0, 0
     escape_folder_set = set(re.split("[,，]", G_conf.escape_folder()))
+    # 遍历文件夹
     for full_name in source.glob(r'**/*'):
+        # 原路径刮削
         if G_conf.main_mode() != Main_Mode.ScrapingInAnalysisFolder and set(full_name.parent.parts) & escape_folder_set:
             continue
+        # 不是文件
         if not full_name.is_file():
             continue
+        # 不是指定类型
         if not full_name.suffix.lower() in file_type:
             continue
         absf = str(full_name)
@@ -374,7 +374,7 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
         is_sym = full_name.is_symlink()
         if G_conf.main_mode() != Main_Mode.ScrapingInAnalysisFolder and (is_sym or (
                 full_name.stat().st_nlink > 1 and not G_conf.scan_hardlink())):  # 短路布尔 符号链接不取stat()，因为符号链接可能指向不存在目标
-            continue  # 模式不等于3下跳过软连接和未配置硬链接刮削
+            continue  # 模式不等于3下跳过软连接和未配置硬链接刮削 
         # 调试用0字节样本允许通过，去除小于120MB的广告'苍老师强力推荐.mp4'(102.2MB)'黑道总裁.mp4'(98.4MB)'有趣的妹子激情表演.MP4'(95MB)'有趣的臺灣妹妹直播.mp4'(15.1MB)
         movie_size = 0 if is_sym else full_name.stat().st_size  # 同上 符号链接不取stat()及st_size，直接赋0跳过小视频检测
         # if 0 < movie_size < 125829120:  # 1024*1024*120=125829120
@@ -475,7 +475,7 @@ def get_numbers(paths: typing.List[str]):
         # 抽取 文件路径中可能存在的尾部集数，和抽取尾部集数的后的文件路径
         suffix_episode, name = PathNameProcessor.extract_suffix_episode(name)
         # 抽取 文件路径中可能存在的 番号后跟随的集数 和 处理后番号
-        episode_behind_code, code_number = PathNameProcessor.extract_code(name)
+        code_number, episode_behind_code = PathNameProcessor.extract_code(name)
         # 无番号 则设置空字符
         code_number = code_number if code_number else ''
         # 优先取尾部集数，无则取番号后的集数（几率低），都无则为空字符
@@ -485,7 +485,7 @@ def get_numbers(paths: typing.List[str]):
         return SimpleNamespace(code=code_number, episode=episode, isCn=False)
 
     # paths 按 code_number 分组 为新字典
-    if G_ini_conf.common.only_jp_code_number:
+    if G_ini_conf.common.movie_type == 1:
         path_list = list(map((lambda x: SimpleNamespace(path=x, result=get_number(x))), paths))
     else:
         path_list = list(map((lambda x: SimpleNamespace(path=x, result=number_parser.get_number_tp(x))), paths))
@@ -706,24 +706,15 @@ def main(args: tuple) -> Path:
                 return movie_lists(folder_path, regexstr)
 
         movie_list = _get_movie_list()
-        # movie_list map 为 {'name':不含文件后缀的文件名,'path':文件路径,'size':文件大小,'time':文件创建时间,'ext':文件后缀}
-        # movie_list = list(map(lambda x: {
-        #                                     'name': os.path.splitext(os.path.basename(x))[0], 
-        #                                     'path': x,
-        #                                 }, 
-        #                       movie_list))
-
-        # movie_list = list(map(lambda x: {'name': os.path.basename(x), 'levenshtein': Levenshtein.distance(x, regexstr),'path': x,}, movie_list))
-        # 获取 番号,集数,路径  的字典->list
         code_ep_paths = get_numbers(movie_list)
         print('| 根据路径文件名识别的番号信息,请确认识别的信息无误')
-        [print('|', i.path, '\n|    ', i.result) for i in code_ep_paths]
+        [print('|', i.path, '\n|    ','|📟', i.result.code,'📟|📚',i.result.episode,'📚|💬🇨🇳',i.result.isCn) for i in code_ep_paths]
         print('|======================================================')
 
 
         count = 0
         count_all = str(len(movie_list))
-        print('[+]Find', count_all, 'movies.')
+        print('[+]Find', count_all, 'movies.', 'main_mode:', G_ini_conf.common.main_mode.name)
         print('[*]======================================================')
 
         # 终端输出 '是否继续?, y 或者 enter 案件继续,其他键退出'
@@ -797,8 +788,8 @@ def period(delta, pattern):
 
 # 首先读取配置文件的配置，然后读取命令行的配置，最后读取环境变量的配置
 G_conf = config.getInstance()
-
-G_ini_conf = ConfigModel.get_config(Path.cwd() / "mdc/config.ini")
+global G_ini_conf
+G_ini_conf = ConfigModel.get_config(Path.cwd() / "MDC/config.ini")
 # 代码入口
 if __name__ == '__main__':
     version = '6.6.7'

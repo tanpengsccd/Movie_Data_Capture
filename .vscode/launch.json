@@ -12,8 +12,9 @@
             "env": {
                 "PYTHONIOENCODING": "utf-8"
             },
-            "program": "${workspaceFolder}/Movie_Data_Capture.py",
-            "args": ["-p","/mnt/dsm/volume5/v3/Japan","-d","1"],
+            "program": "${workspaceFolder}/MDC/__init__.py",
+            "args": ["-p","/mnt/dsm/volume5/v3/Japan/failed/","-d","1"],
+            
             // "program1": "${workspaceFolder}/WebCrawler/javbus.py",
             // "program2": "${workspaceFolder}/WebCrawler/javdb.py",
             // "program3": "${workspaceFolder}/WebCrawler/xcity.py",

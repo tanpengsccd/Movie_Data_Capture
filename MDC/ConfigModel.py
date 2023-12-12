@@ -42,7 +42,7 @@ class ConfigModel(BaseModel):
         main_mode: Main_Mode
         source_folder: str
         test_movie_list: str = None
-        only_jp_code_number: bool = False
+        movie_type: int = 0
         failed_output_folder: str
         success_output_folder: str
         link_mode: int
