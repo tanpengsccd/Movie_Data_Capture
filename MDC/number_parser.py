@@ -1,3 +1,4 @@
+from collections import namedtuple
 import os
 import re
 import sys
@@ -132,7 +133,7 @@ def get_number_tp(file_path: str) -> SimpleNamespace:
     # 调用get_number()，返回一个命名空间，包含code和episode两个属性, 异常时 再次抛出异常
     try:
         code_number = get_number(True, file_path)
-        return SimpleNamespace(code=code_number, episode=None, isCn=False)
+        return namedtuple('R', ['code', 'possible_episodes','isCn'])(code_number,[],False) 
     except Exception as e:
         raise e
 

@@ -94,7 +94,7 @@ class PathNameProcessor:
         with fuckit:
             # 零宽断言获取尾部字幕 剧集数 abc
             pattern_episodes_alpha = r'(?<![a-zA-Z])[a-zA-Z]$'
-            episode = re.findall(pattern_episodes_alpha, origin_name)[-1]
+            episode = re.findall(pattern_episodes_alpha, origin_name)[-1].upper()
             origin_name = re.sub(pattern_episodes_alpha, "", origin_name)
             
         return episode, origin_name
@@ -102,27 +102,30 @@ class PathNameProcessor:
     @staticmethod
     def extract_code(origin_name):
         """
-        提取集数和 规范过的番号
+        提取集数 和 规范过的番号
         """
         episode = None
         code = None
-        # 优先匹配 配置的正则
+        isCnSubtitles = len(re.findall(r'(ch)|(中文?字幕?)', origin_name, re.I))>0
+        # 1. 优先匹配ini配置的正则规则
+        # 2. 匹配比较特殊的规则
+        # 3. 匹配常见规则
         
         with fuckit:
             # 按javdb数据源的命名规范提取number
             
             G_TAKE_NUM_RULES = {
-                'tokyo.*hot': lambda x: str(re.search(r'(cz|gedo|k|n|red-|se)\d{2,4}', x, re.I).group()),
-                'carib': lambda x: str(re.search(r'\d{6}(-|_)\d{3}', x, re.I).group()).replace('_', '-'),
-                '1pon|mura|paco': lambda x: str(re.search(r'\d{6}(-|_)\d{3}', x, re.I).group()).replace('-', '_'),
-                '10mu': lambda x: str(re.search(r'\d{6}(-|_)\d{2}', x, re.I).group()).replace('-', '_'),
-                'x-art': lambda x: str(re.search(r'x-art\.\d{2}\.\d{2}\.\d{2}', x, re.I).group()),
-                'xxx-av': lambda x: ''.join(['xxx-av-', re.findall(r'xxx-av[^\d]*(\d{3,5})[^\d]*', x, re.I)[0]]),
-                'heydouga': lambda x: 'heydouga-' + '-'.join(re.findall(r'(\d{4})[\-_](\d{3,4})[^\d]*', x, re.I)[0]),
-                'heyzo': lambda x: 'HEYZO-' + re.findall(r'heyzo[^\d]*(\d{4})', x, re.I)[0],
-                'mdbk': lambda x: str(re.search(r'mdbk(-|_)(\d{4})', x, re.I).group()),
-                'mdtm': lambda x: str(re.search(r'mdtm(-|_)(\d{4})', x, re.I).group()),
-                'caribpr': lambda x: str(re.search(r'\d{6}(-|_)\d{3}', x, re.I).group()).replace('_', '-'),
+                'tokyo.*hot':       lambda x: str(re.search(r'(cz|gedo|k|n|red-|se)\d{2,4}',    x, re.I).group()),
+                'carib':            lambda x: str(re.search(r'\d{6}(-|_)\d{3}',                 x, re.I).group()).replace('_', '-'),
+                '1pon|mura|paco':   lambda x: str(re.search(r'\d{6}(-|_)\d{3}',                 x, re.I).group()).replace('-', '_'),
+                '10mu':             lambda x: str(re.search(r'\d{6}(-|_)\d{2}',                 x, re.I).group()).replace('-', '_'),
+                'x-art':            lambda x: str(re.search(r'x-art\.\d{2}\.\d{2}\.\d{2}',      x, re.I).group()),
+                'xxx-av':           lambda x: ''.join(['xxx-av-', re.findall(r'xxx-av[^\d]*(\d{3,5})[^\d]*', x, re.I)[0]]),
+                'heydouga':         lambda x: 'heydouga-' + '-'.join(re.findall(r'(\d{4})[\-_](\d{3,4})[^\d]*', x, re.I)[0]),
+                'heyzo':            lambda x: 'HEYZO-' + re.findall(r'heyzo[^\d]*(\d{4})', x, re.I)[0],
+                'mdbk':             lambda x: str(re.search(r'mdbk(-|_)(\d{4})',                x, re.I).group()),
+                'mdtm':             lambda x: str(re.search(r'mdtm(-|_)(\d{4})',                x, re.I).group()),
+                'caribpr':          lambda x: str(re.search(r'\d{6}(-|_)\d{3}',                 x, re.I).group()).replace('_', '-'),
             }
             for k, v in G_TAKE_NUM_RULES.items():
                 if re.search(k, origin_name, re.I):
@@ -131,16 +134,11 @@ class PathNameProcessor:
             
         if code:
             episode = PathNameProcessor.extract_episode_behind_code(origin_name, code)
-        
-            # origin_name = re.sub(r'(Carib)(bean|ean)?', '-', origin_name, 0, re.IGNORECASE)
-            # origin_name = re.sub(r'(1pondo)', '-', origin_name, 0, re.IGNORECASE)
-            # origin_name = re.sub(r'(tokyo)[-. ]?(hot)', '-', origin_name, 0, re.IGNORECASE)
-            # origin_name = re.sub(r'Uncensored', '-', origin_name, 0, re.IGNORECASE)
         else: 
             # 找到含- 或不含-的 番号：1. 数字+数字 2. 字母+数字
             code = re.findall(r'(?:\d{2,}-\d{2,})|(?:[A-Z]+-?[A-Z]*\d{2,})', origin_name)[-1]
             episode = PathNameProcessor.extract_episode_behind_code(origin_name, code)
-            # 将未-的名字处理加上 -
+            # 将无-的名字处理加上-
             if not ('-' in code):
                 # 无减号-的番号,尝试分段加上-
                 # 非贪婪匹配非特殊字符，零宽断言后，数字至少2位连续,ipz221.part2 ， mide072hhb ,n1180
@@ -160,7 +158,7 @@ class PathNameProcessor:
                     if searched:
                         code = '-'.join(searched.groups())
 
-        return namedtuple('Code', ['code', 'episode'])(code, episode)
+        return namedtuple('Code', ['code', 'episode', 'isCnSubtitles'])(code, episode, isCnSubtitles)
 
 
     @staticmethod
@@ -169,10 +167,12 @@ class PathNameProcessor:
 
         with fuckit:
             # 零宽断言获取尾部字幕 剧集数 abc123
-            result_dict = re.search(rf'(?<={code})-?((?P<alpha>([A-Z](?![A-Z])))|(?P<num>\d(?!\d)))', origin_name,
+            result_dict = re.search(rf'(?<={code})-?((?P<alpha>(\b[A-Z]\b))|\w*(?P<num>\d(?!\d)))', origin_name,
                                     re.I).groupdict()
-            episode = result_dict['alpha'] or result_dict['num']
-        return episode
+            episode = result_dict['num'] or result_dict['alpha'] 
+        return episode.upper() if episode else None
+    
+    
 
 
 def safe_list_get(list_in, idx, default):

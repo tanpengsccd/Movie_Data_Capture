@@ -1,5 +1,6 @@
 # 程序入口
 from collections import namedtuple
+import copy
 from itertools import groupby
 from operator import itemgetter
 from types import SimpleNamespace
@@ -470,41 +471,50 @@ def get_numbers(paths: typing.List[str]):
         name = filepath.upper()  # 转大写
         if absolute_path:
             name = name.replace('\\', '/')
-        # 移除干扰字段
+        #1. 移除干扰字段
         name = PathNameProcessor.remove_distractions(name)
-        # 抽取 文件路径中可能存在的尾部集数，和抽取尾部集数的后的文件路径
-        suffix_episode, name = PathNameProcessor.extract_suffix_episode(name)
-        # 抽取 文件路径中可能存在的 番号后跟随的集数 和 处理后番号
-        code_number, episode_behind_code = PathNameProcessor.extract_code(name)
-        # 无番号 则设置空字符
-        code_number = code_number if code_number else ''
-        # 优先取尾部集数，无则取番号后的集数（几率低），都无则为空字符
-        episode = suffix_episode or episode_behind_code or None
+        #2. 抽取文件路径中可能存在的尾部集数，和抽取尾部集数的后的文件路径
+        episode_suffix, name = PathNameProcessor.extract_suffix_episode(name)
+        #3. 抽取 文件路径中可能存在的 番号后跟随的集数 和 处理后番号
+        code_number, episode_behind_code , isCnStubtitles = PathNameProcessor.extract_code(name)
+        # 优先取尾部集数，无则取番号后的集数（几率低）
 
-        # return namedtuple('R', ['code', 'episode'])(code_number,episode) 
-        return SimpleNamespace(code=code_number, episode=episode, isCn=False)
+        
+        return namedtuple('R', ['code', 'possible_episodes','isCn'])(code_number,[episode_suffix,episode_behind_code],isCnStubtitles)
+        
 
     # paths 按 code_number 分组 为新字典
     if G_ini_conf.common.movie_type == 1:
         path_list = list(map((lambda x: SimpleNamespace(path=x, result=get_number(x))), paths))
     else:
         path_list = list(map((lambda x: SimpleNamespace(path=x, result=number_parser.get_number_tp(x))), paths))
-    grouped_data = {k: list(v) for k, v in groupby(path_list, key=lambda x: x.result.code)}
+    grouped_by_code_map = {k: list(v) for k, v in groupby(path_list, key=lambda x: x.result.code)}
 
-    # 处理: 如果同code时, episode 有c无b,a ,则为中文字幕视频 并非episode
-    for codeKey, itemList in grouped_data.items():
-        for i in itemList:
-            if (
-                    (ep := i.result.episode) and
-                    ep is not None and ep.lower() == 'c' and
-                    not pydash.find(itemList, lambda x: (x.result.episode or '').lower() in ['a', 'b'])
-            ):
-                i.result.episode = None
-                i.result.isCn = True
-            else:
-                continue
+    # 找出分集是C 但实际是中文字幕标志的情况: 如果同code时, episode 有C无B集时 ,则为中文字幕视频 并非episode,  那么另一个可能的episode 就是真正集数. 如果找不到,则优先取一个episode
+    # 生成一个新的path_list
+    new_path_list = []
+    for codeKey, itemList in grouped_by_code_map.items():
+        for i in itemList :
+            
+            code,possible_episodes,isCn = i.result
+            episode = None
+            if not isCn and 'C' in possible_episodes:   # 如果不是中文字幕视频, 可能有的集数字段有‘C’ 才处理
+                
+                eps = copy.deepcopy(possible_episodes)
+                # 找到 CnSusbtile 位置
+                if (index_Cn_Ep := pydash.find_index(eps, lambda ep: ep == 'C' and not pydash.find(itemList, lambda x: 'B' in x.result.possible_episodes ))) > -1:
+                    del eps[index_Cn_Ep]
+                    isCn = True
+                # 可能的分集参数, 按顺位取
+                episode = eps[0] if len(eps) > 0 else None
 
-    return path_list
+            else: 
+                episode = possible_episodes[0] if len(possible_episodes) > 0 else None
+                
+            new_path_list.append(SimpleNamespace(path=i.path, result=SimpleNamespace(code=code,episode=episode,isCn=isCn)))
+                
+
+    return new_path_list
 
 
 # 生成数据并移动
