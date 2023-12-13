@@ -5,6 +5,7 @@ import re
 
 import fuckit
 import pydantic
+import pydash
 
 class Movie(pydantic.BaseModel):
     '''影片信息'''
@@ -106,8 +107,16 @@ class PathNameProcessor:
         """
         episode = None
         code = None
-        isCnSubtitles = len(re.findall(r'(ch)|(中文?字幕?)', origin_name, re.I))>0
-        # 1. 优先匹配ini配置的正则规则
+        
+        chinese_subtitles_match = re.search(r'(ch)|(中文?字幕?)', origin_name, re.IGNORECASE)
+        uncensored_match = re.search(r'(unce?n?s?o?r?e?d?)|(无码)', origin_name, re.IGNORECASE)
+        leak_match = re.search(r'(leak(ed)?)|(泄漏)|(流出)', origin_name, re.IGNORECASE)
+        crack_match = re.search(r'(crack(ed)?)|(破解)', origin_name, re.IGNORECASE)
+        # 使用 reduce 来 移除 匹配到的 字段, 以减少后面 番号识别的干扰
+        matches = [match for match in [chinese_subtitles_match, uncensored_match ,leak_match, crack_match] if match]
+        origin_name = pydash.reduce_(matches,lambda a,i: a[:i.start()]+a[i.end():] ,origin_name)
+        
+        # TODO: 1. 优先匹配ini配置的正则规则
         # 2. 匹配比较特殊的规则
         # 3. 匹配常见规则
         
@@ -158,7 +167,9 @@ class PathNameProcessor:
                     if searched:
                         code = '-'.join(searched.groups())
 
-        return namedtuple('Code', ['code', 'episode', 'isCnSubtitles'])(code, episode, isCnSubtitles)
+        return namedtuple('Code',['code', 'episode','is_uncensored','is_cracked','is_leaked', 'is_cn_subs'])(
+                              code, episode,bool(uncensored_match), bool(crack_match), bool(leak_match), bool(chinese_subtitles_match)
+                              )
 
 
     @staticmethod

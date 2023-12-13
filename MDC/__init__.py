@@ -476,42 +476,43 @@ def get_numbers(paths: typing.List[str]):
         #2. 抽取文件路径中可能存在的尾部集数，和抽取尾部集数的后的文件路径
         episode_suffix, name = PathNameProcessor.extract_suffix_episode(name)
         #3. 抽取 文件路径中可能存在的 番号后跟随的集数 和 处理后番号
-        code_number, episode_behind_code , isCnStubtitles = PathNameProcessor.extract_code(name)
-        # 优先取尾部集数，无则取番号后的集数（几率低）
+        code_number, episode_behind_code,is_uncensored,is_cracked,is_leaked,is_cn_subs = PathNameProcessor.extract_code(name)
+        # 优先取尾部集数，无则取番号后的集数（几率低） 
 
         
-        return namedtuple('R', ['code', 'possible_episodes','isCn'])(code_number,[episode_suffix,episode_behind_code],isCnStubtitles)
+        return namedtuple('R', ['code', 'possible_episodes','is_uncensored','is_cracked','is_leaked', 'is_cn_subs'])(code_number,[episode_suffix,episode_behind_code],is_uncensored,is_cracked,is_leaked,is_cn_subs)
         
-
+    PathInfo = namedtuple('R', ['path', 'result'])
     # paths 按 code_number 分组 为新字典
     if G_ini_conf.common.movie_type == 1:
-        path_list = list(map((lambda x: SimpleNamespace(path=x, result=get_number(x))), paths))
+        path_list = list(map((lambda x: PathInfo(path=x, result=get_number(x))), paths))
     else:
-        path_list = list(map((lambda x: SimpleNamespace(path=x, result=number_parser.get_number_tp(x))), paths))
+        path_list = list(map((lambda x: PathInfo(path=x, result=number_parser.get_number_tp(x))), paths))
     grouped_by_code_map = {k: list(v) for k, v in groupby(path_list, key=lambda x: x.result.code)}
 
     # 找出分集是C 但实际是中文字幕标志的情况: 如果同code时, episode 有C无B集时 ,则为中文字幕视频 并非episode,  那么另一个可能的episode 就是真正集数. 如果找不到,则优先取一个episode
     # 生成一个新的path_list
-    new_path_list = []
+    
+    new_path_list = list[PathInfo]()
     for codeKey, itemList in grouped_by_code_map.items():
         for i in itemList :
             
-            code,possible_episodes,isCn = i.result
+            code,possible_episodes,is_uncensored,is_cracked,is_leaked,is_cn_subs = i.result
             episode = None
-            if not isCn and 'C' in possible_episodes:   # 如果不是中文字幕视频, 可能有的集数字段有‘C’ 才处理
+            if not is_cn_subs and 'C' in possible_episodes:   # 如果不是中文字幕视频, 可能有的集数字段有‘C’ 才处理
                 
                 eps = copy.deepcopy(possible_episodes)
                 # 找到 CnSusbtile 位置
                 if (index_Cn_Ep := pydash.find_index(eps, lambda ep: ep == 'C' and not pydash.find(itemList, lambda x: 'B' in x.result.possible_episodes ))) > -1:
                     del eps[index_Cn_Ep]
-                    isCn = True
+                    is_cn_subs = True
                 # 可能的分集参数, 按顺位取
                 episode = eps[0] if len(eps) > 0 else None
 
             else: 
                 episode = possible_episodes[0] if len(possible_episodes) > 0 else None
                 
-            new_path_list.append(SimpleNamespace(path=i.path, result=SimpleNamespace(code=code,episode=episode,isCn=isCn)))
+            new_path_list.append(PathInfo(path=i.path, result=namedtuple('R', ['code', 'episode','is_uncensored','is_cracked','is_leaked', 'is_cn_subs'])(code,episode,is_uncensored,is_cracked,is_leaked,is_cn_subs)))
                 
 
     return new_path_list
@@ -718,7 +719,7 @@ def main(args: tuple) -> Path:
         movie_list = _get_movie_list()
         code_ep_paths = get_numbers(movie_list)
         print('| 根据路径文件名识别的番号信息,请确认识别的信息无误')
-        [print('|', i.path, '\n|    ','|📟', i.result.code,'📟|📚',i.result.episode,'📚|💬🇨🇳',i.result.isCn) for i in code_ep_paths]
+        [print('|', i.path, '\n|    ','|📟', i.result.code,'📟|📚',i.result.episode,'📚 (', '💬' if i.result.is_cn_subs else '','🚰' if i.result.is_leaked else '','🛠️' if i.result.is_cracked else '' ,'🈚' if i.result.is_uncensored else '',')' ) for i in code_ep_paths]
         print('|======================================================')
 
 
