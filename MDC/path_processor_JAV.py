@@ -1,4 +1,6 @@
+# JAV 路径文件名处理器
 from collections import namedtuple
+from dataclasses import dataclass, field
 from enum import Enum
 import pathlib
 import re
@@ -31,7 +33,25 @@ class Movie(pydantic.BaseModel):
     episode: str = None
     isCnSub: bool = False
     '''中文字幕'''
-    
+
+@dataclass
+class PathMeta:
+    path: str 
+    """路径"""
+    code : str = None
+    """番号"""
+    possible_episodes: list[str] = field(default_factory=lambda:[])
+    """可能的集数,过渡用,最终集数使用episode"""
+    episode: str = None
+    """集数"""
+    is_uncensored: bool = False
+    """ 是否无码 """
+    is_cracked: bool = False
+    """ 是否破解 """
+    is_leaked : bool = False
+    """ 是否流出"""
+    is_cn_subs: bool = False
+    """ 是否中字"""
     
 class PathNameProcessor:
     """提取JAV的番号(和动画/欧美分开处理,文件名规律和站点差异都太大)
@@ -108,43 +128,35 @@ class PathNameProcessor:
         episode = None
         code = None
         
-        chinese_subtitles_match = re.search(r'(ch)|(中文?字幕?)', origin_name, re.IGNORECASE)
-        uncensored_match = re.search(r'(unce?n?s?o?r?e?d?)|(无码)', origin_name, re.IGNORECASE)
+        chinese_subtitles_match = re.search(r'([^a-zA-Z]ch\b)|(中?文?字幕?)', origin_name, re.IGNORECASE) # 这里不匹配C 是可能是 集数ABC, 后面再判断C是不是 中字
+        uncensored_match = re.search(r'(unc?e?n?s?o?r?e?d?)|(无码)', origin_name, re.IGNORECASE)
+        # TODO: 取ini uncensored_prefix ,如果匹配,也为 uncensore
         leak_match = re.search(r'(leak(ed)?)|(泄漏)|(流出)', origin_name, re.IGNORECASE)
         crack_match = re.search(r'(crack(ed)?)|(破解)', origin_name, re.IGNORECASE)
         # 使用 reduce 来 移除 匹配到的 字段, 以减少后面 番号识别的干扰
         matches = [match for match in [chinese_subtitles_match, uncensored_match ,leak_match, crack_match] if match]
         origin_name = pydash.reduce_(matches,lambda a,i: a[:i.start()]+a[i.end():] ,origin_name)
         
-        # TODO: 1. 优先匹配ini配置的正则规则
-        # 2. 匹配比较特殊的规则
-        # 3. 匹配常见规则
+        # TODO: code匹配 1. 优先匹配ini配置的正则规则(未施工)         # 2. 匹配比较特殊的规则         # 3. 匹配通用规则
         
-        with fuckit:
-            # 按javdb数据源的命名规范提取number
-            
-            G_TAKE_NUM_RULES = {
-                'tokyo.*hot':       lambda x: str(re.search(r'(cz|gedo|k|n|red-|se)\d{2,4}',    x, re.I).group()),
-                'carib':            lambda x: str(re.search(r'\d{6}(-|_)\d{3}',                 x, re.I).group()).replace('_', '-'),
-                '1pon|mura|paco':   lambda x: str(re.search(r'\d{6}(-|_)\d{3}',                 x, re.I).group()).replace('-', '_'),
-                '10mu':             lambda x: str(re.search(r'\d{6}(-|_)\d{2}',                 x, re.I).group()).replace('-', '_'),
-                'x-art':            lambda x: str(re.search(r'x-art\.\d{2}\.\d{2}\.\d{2}',      x, re.I).group()),
-                'xxx-av':           lambda x: ''.join(['xxx-av-', re.findall(r'xxx-av[^\d]*(\d{3,5})[^\d]*', x, re.I)[0]]),
-                'heydouga':         lambda x: 'heydouga-' + '-'.join(re.findall(r'(\d{4})[\-_](\d{3,4})[^\d]*', x, re.I)[0]),
-                'heyzo':            lambda x: 'HEYZO-' + re.findall(r'heyzo[^\d]*(\d{4})', x, re.I)[0],
-                'mdbk':             lambda x: str(re.search(r'mdbk(-|_)(\d{4})',                x, re.I).group()),
-                'mdtm':             lambda x: str(re.search(r'mdtm(-|_)(\d{4})',                x, re.I).group()),
-                'caribpr':          lambda x: str(re.search(r'\d{6}(-|_)\d{3}',                 x, re.I).group()).replace('_', '-'),
-            }
-            for k, v in G_TAKE_NUM_RULES.items():
-                if re.search(k, origin_name, re.I):
-                    code = v(origin_name)
-                    break
-            
-        if code:
+        #2:匹配比较特殊的规则, 按javdb数据源的命名规范提取number
+        common_code_matches = {
+            'tokyo.*hot':       lambda x: str(re.search(r'(cz|gedo|k|n|red-|se)\d{2,4}',    x, re.I).group()),
+            'carib':            lambda x: str(re.search(r'\d{6}(-|_)\d{3}',                 x, re.I).group()).replace('_', '-'),
+            '1pon|mura|paco':   lambda x: str(re.search(r'\d{6}(-|_)\d{3}',                 x, re.I).group()).replace('-', '_'),
+            '10mu':             lambda x: str(re.search(r'\d{6}(-|_)\d{2}',                 x, re.I).group()).replace('-', '_'),
+            'x-art':            lambda x: str(re.search(r'x-art\.\d{2}\.\d{2}\.\d{2}',      x, re.I).group()),
+            'xxx-av':           lambda x: ''.join(['xxx-av-', re.findall(r'xxx-av[^\d]*(\d{3,5})[^\d]*', x, re.I)[0]]),
+            'heydouga':         lambda x: 'heydouga-' + '-'.join(re.findall(r'(\d{4})[\-_](\d{3,4})[^\d]*', x, re.I)[0]),
+            'heyzo':            lambda x: 'HEYZO-' + re.findall(r'heyzo[^\d]*(\d{4})', x, re.I)[0],
+            'mdbk':             lambda x: str(re.search(r'mdbk(-|_)(\d{4})',                x, re.I).group()),
+            'mdtm':             lambda x: str(re.search(r'mdtm(-|_)(\d{4})',                x, re.I).group()),
+            'caribpr':          lambda x: str(re.search(r'\d{6}(-|_)\d{3}',                 x, re.I).group()).replace('_', '-'),
+        }
+        if (partern := pydash.find(common_code_matches, lambda v,k: re.search(k, origin_name, re.I))) is not None and (code := partern(origin_name)) is not None:
             episode = PathNameProcessor.extract_episode_behind_code(origin_name, code)
         else: 
-            # 找到含- 或不含-的 番号：1. 数字+数字 2. 字母+数字
+            #3 通用规则: 找到含- 或不含-的 番号：1. 数字+数字 2. 字母+数字
             code = re.findall(r'(?:\d{2,}-\d{2,})|(?:[A-Z]+-?[A-Z]*\d{2,})', origin_name)[-1]
             episode = PathNameProcessor.extract_episode_behind_code(origin_name, code)
             # 将无-的名字处理加上-

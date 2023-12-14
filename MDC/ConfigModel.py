@@ -38,7 +38,7 @@ class ConfigModel(BaseModel):
             Scraping = 'scraping'
             Organizing = 'organizing'
             ScrapingInAnalysisFolder = 'scrapingInAnalysisFolder'
-
+        
         main_mode: Main_Mode
         source_folder: str
         test_movie_list: str = None
@@ -89,12 +89,20 @@ class ConfigModel(BaseModel):
         cacert_file: str
 
     class NameRuleConfig(BaseModel):
+        class StringCRecognitionStrategy(Enum):
+            auto= 'auto'
+            '''自动'''
+            cn= 'cn'
+            '''中文'''
+            part= 'part'
+            '''部分'''
         location_rule: str
         naming_rule: str
         max_title_len: int
         image_naming_with_number: int
         number_uppercase: int
         number_regexs: str
+        string_c_recognition_strategy: StringCRecognitionStrategy = StringCRecognitionStrategy.auto
 
     class UpdateConfig(BaseModel):
         update_check: int

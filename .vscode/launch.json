@@ -13,7 +13,9 @@
                 "PYTHONIOENCODING": "utf-8"
             },
             "program": "${workspaceFolder}/MDC/__init__.py",
-            "args": ["-p","/mnt/dsm/volume5/v3/Japan/failed/","-d","1"],
+            // "args": ["-p","/mnt/dsm/volume5/v3/Japan/failed/","-d","1"],
+            "args": ["-d","1"],
+            
             
             // "program1": "${workspaceFolder}/WebCrawler/javbus.py",
             // "program2": "${workspaceFolder}/WebCrawler/javdb.py",

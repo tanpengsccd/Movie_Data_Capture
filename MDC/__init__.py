@@ -1,6 +1,7 @@
 # 程序入口
 from collections import namedtuple
 import copy
+from dataclasses import dataclass
 from itertools import groupby
 from operator import itemgetter
 from types import SimpleNamespace
@@ -17,11 +18,11 @@ import pydash
 import urllib3
 import signal
 import platform
-from ConfigModel import ConfigModel
-from PathNameProcessor import PathNameProcessor
+from ConfigModel import ConfigModel 
+from path_processor_JAV import PathMeta, PathNameProcessor
 import number_parser
 import config
-
+import media_data_generate
 from config import Main_Mode
 from datetime import datetime, timedelta
 from lxml import etree
@@ -349,7 +350,7 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
         except:
             pass
     if not Path(source_folder).is_dir():
-        print('[-]Source folder not found!')
+        print('[-]Source folder not found: ',source_folder)
         return []
     total = []
     source = Path(source_folder).resolve()
@@ -458,7 +459,11 @@ def rm_empty_folder(path):
             pass
 
 
-def get_numbers(paths: typing.List[str]):
+
+
+
+
+def get_numbers(paths: typing.List[str]) -> tuple[list[PathMeta],dict[str,list[PathMeta]]]:
     """提取对应路径的番号+集数,集数可能含C(中文字幕)但非分集"""
 
     def get_number(filepath, absolute_path=False):
@@ -479,49 +484,57 @@ def get_numbers(paths: typing.List[str]):
         code_number, episode_behind_code,is_uncensored,is_cracked,is_leaked,is_cn_subs = PathNameProcessor.extract_code(name)
         # 优先取尾部集数，无则取番号后的集数（几率低） 
 
+        return PathMeta(path=filepath, code=code_number,possible_episodes=[episode_suffix,episode_behind_code],is_uncensored=is_uncensored,is_cracked=is_cracked,is_leaked=is_leaked,is_cn_subs=is_cn_subs)
+        # return namedtuple('R', ['code', 'possible_episodes','is_uncensored','is_cracked','is_leaked', 'is_cn_subs'])(code_number,[episode_suffix,episode_behind_code],is_uncensored,is_cracked,is_leaked,is_cn_subs)
         
-        return namedtuple('R', ['code', 'possible_episodes','is_uncensored','is_cracked','is_leaked', 'is_cn_subs'])(code_number,[episode_suffix,episode_behind_code],is_uncensored,is_cracked,is_leaked,is_cn_subs)
-        
-    PathInfo = namedtuple('R', ['path', 'result'])
-    # paths 按 code_number 分组 为新字典
-    if G_ini_conf.common.movie_type == 1:
-        path_list = list(map((lambda x: PathInfo(path=x, result=get_number(x))), paths))
-    else:
-        path_list = list(map((lambda x: PathInfo(path=x, result=number_parser.get_number_tp(x))), paths))
-    grouped_by_code_map = {k: list(v) for k, v in groupby(path_list, key=lambda x: x.result.code)}
-
-    # 找出分集是C 但实际是中文字幕标志的情况: 如果同code时, episode 有C无B集时 ,则为中文字幕视频 并非episode,  那么另一个可能的episode 就是真正集数. 如果找不到,则优先取一个episode
-    # 生成一个新的path_list
     
-    new_path_list = list[PathInfo]()
-    for codeKey, itemList in grouped_by_code_map.items():
+    if G_ini_conf.common.movie_type == 1:
+        # 如果是 JAV
+        path_list = list(map((lambda x: get_number(x)), paths))
+    else:
+        # 否则都是通用识别逻辑
+        path_list = list(map((lambda x: number_parser.get_number_tp(x)), paths))
+    paths_by_code = {k: list(v) for k, v in groupby(path_list, key=lambda x: x.code)}
+
+    # 目的: 找出分集是C 但实际是中文字幕标志的情况: 如果同code时, episode 有C无B集时 ,则为中文字幕视频 并非episode,  那么另一个可能的episode 就是真正集数. 如果找不到,则优先取一个episode
+    # 实际只修改了 episode 和 is_cn_subs
+    
+
+    for codeKey, itemList in paths_by_code.items():
+        
         for i in itemList :
-            
-            code,possible_episodes,is_uncensored,is_cracked,is_leaked,is_cn_subs = i.result
-            episode = None
-            if not is_cn_subs and 'C' in possible_episodes:   # 如果不是中文字幕视频, 可能有的集数字段有‘C’ 才处理
-                
-                eps = copy.deepcopy(possible_episodes)
-                # 找到 CnSusbtile 位置
-                if (index_Cn_Ep := pydash.find_index(eps, lambda ep: ep == 'C' and not pydash.find(itemList, lambda x: 'B' in x.result.possible_episodes ))) > -1:
-                    del eps[index_Cn_Ep]
-                    is_cn_subs = True
-                # 可能的分集参数, 按顺位取
-                episode = eps[0] if len(eps) > 0 else None
+         
+            if 'C' in i.possible_episodes:   # 如果不是中文字幕视频, 可能有的集数字段有‘C’ 才处理
+                    
+                eps = copy.deepcopy(i.possible_episodes)
+                if G_ini_conf.Name_Rule.string_c_recognition_strategy == ConfigModel.NameRuleConfig.StringCRecognitionStrategy.auto:
+                    # 找到 CnSusbtile 位置
+                    if (index_Cn_Ep := pydash.find_index(eps, lambda ep: ep == 'C' and not pydash.find(itemList, lambda x: 'B' in x.possible_episodes ))) > -1:
+                        del eps[index_Cn_Ep]
+                        i.is_cn_subs = True
+                    # 可能的分集参数, 按顺位取
+                    i.episode = eps[0] if len(eps) > 0 else None
+                elif G_ini_conf.Name_Rule.string_c_recognition_strategy == ConfigModel.NameRuleConfig.StringCRecognitionStrategy.part:
+                    i.episode = 'C'
+                elif G_ini_conf.Name_Rule.string_c_recognition_strategy == ConfigModel.NameRuleConfig.StringCRecognitionStrategy.cn :
+                    eps.remove('C')
+                    i.episode = eps[0] if len(eps) > 0 else None
+                    i.is_cn_subs = True
 
             else: 
-                episode = possible_episodes[0] if len(possible_episodes) > 0 else None
+                i.episode = i.possible_episodes[0] if len(i.possible_episodes) > 0 else None
                 
-            new_path_list.append(PathInfo(path=i.path, result=namedtuple('R', ['code', 'episode','is_uncensored','is_cracked','is_leaked', 'is_cn_subs'])(code,episode,is_uncensored,is_cracked,is_leaked,is_cn_subs)))
                 
 
-    return new_path_list
+
+    return namedtuple('R',['path_list','paths_by_code'] ) (path_list,paths_by_code)
 
 
 # 生成数据并移动
 def create_data_and_move(movie_path: str, zero_op: bool, no_net_op: bool, oCC):
     """
-生成数据并移动
+    生成数据并移动
+    
     :param movie_path:路径
     :param zero_op:是否为 不操作
     :param no_net_op:是否为 无网络操作
@@ -540,8 +553,10 @@ def create_data_and_move(movie_path: str, zero_op: bool, no_net_op: bool, oCC):
             return
         if n_number:
             if no_net_op:
+                # 不联网操作
                 core_main_no_net_op(movie_path, n_number)
             else:
+                # 联网操作 核心❤️
                 core_main(movie_path, n_number, oCC)
         else:
             print("[-] number empty ERROR")
@@ -717,9 +732,10 @@ def main(args: tuple) -> Path:
                 return movie_lists(folder_path, regexstr)
 
         movie_list = _get_movie_list()
-        code_ep_paths = get_numbers(movie_list)
+        
+        code_ep_paths,paths_by_code = get_numbers(movie_list)
         print('| 根据路径文件名识别的番号信息,请确认识别的信息无误')
-        [print('|', i.path, '\n|    ','|📟', i.result.code,'📟|📚',i.result.episode,'📚 (', '💬' if i.result.is_cn_subs else '','🚰' if i.result.is_leaked else '','🛠️' if i.result.is_cracked else '' ,'🈚' if i.result.is_uncensored else '',')' ) for i in code_ep_paths]
+        [print('|', i.path, '\n|    ','|📟', i.code,'📟|📚',i.episode,'📚 (', '💬' if i.is_cn_subs else '','🚰' if i.is_leaked else '','🛠️' if i.is_cracked else '' ,'🈚' if i.is_uncensored else '',')',sep='' ) for i in code_ep_paths]
         print('|======================================================')
 
 
@@ -741,19 +757,27 @@ def main(args: tuple) -> Path:
             count_all = str(min(len(movie_list), stop_count))
         # 先获取遍历电影列表,提取不联网的影片信息, 比如: 分集,是否内嵌中文,是否泄漏版,是否去马赛克版
 
-        for movie_path in movie_list:  # 遍历电影列表 交给core处理
-            count = count + 1
-            percentage = str(count / int(count_all) * 100)[:4] + '%'
-            print('[!] {:>30}{:>21}'.format('- ' + percentage + ' [' + str(count) + '/' + count_all + '] -',
-                                            time.strftime("%H:%M:%S")))
-            # ❤️ 核心处理逻辑 ❤️
-            create_data_and_move(movie_path, zero_op, no_net_op, oCC)
-            # 如果停止计数大于0,并且已经处理的文件数量大于等于停止计数,则退出循环,等待下次启动
-            if count >= stop_count:
-                print("[!]Stop counter triggered!")
-                break
-            sleep_seconds = random.randint(G_conf.sleep(), G_conf.sleep() + 2)
-            time.sleep(sleep_seconds)
+        # 
+        if G_ini_conf.common.movie_type == 1: 
+            # 如果是 JAV 使用 JAV定制逻辑, 识别信息 准确率会更高
+            for code,paths in paths_by_code.items():
+                media_data_generate.generate(code, paths, oCC, specified_source, specified_url)
+        
+        else:
+            # 原 通用逻辑
+            for movie_path in movie_list:  # 遍历电影列表 交给core处理
+                count = count + 1
+                percentage = str(count / int(count_all) * 100)[:4] + '%'
+                print('[!] {:>30}{:>21}'.format('- ' + percentage + ' [' + str(count) + '/' + count_all + '] -',
+                                                time.strftime("%H:%M:%S")))
+                # ❤️ 核心处理逻辑 ❤️
+                create_data_and_move(movie_path, zero_op, no_net_op, oCC)
+                # 如果停止计数大于0,并且已经处理的文件数量大于等于停止计数,则退出循环,等待下次启动
+                if count >= stop_count:
+                    print("[!]Stop counter triggered!")
+                    break
+                sleep_seconds = random.randint(G_conf.sleep(), G_conf.sleep() + 2)
+                time.sleep(sleep_seconds)
 
     if G_conf.del_empty_folder() and not zero_op:
         rm_empty_folder(G_conf.success_folder())

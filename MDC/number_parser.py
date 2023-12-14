@@ -3,6 +3,9 @@ import os
 import re
 import sys
 from types import SimpleNamespace
+from path_processor_JAV import PathMeta
+
+
 
 import config
 import typing
@@ -133,7 +136,7 @@ def get_number_tp(file_path: str) -> SimpleNamespace:
     # 调用get_number()，返回一个命名空间，包含code和episode两个属性, 异常时 再次抛出异常
     try:
         code_number = get_number(True, file_path)
-        return namedtuple('R', ['code', 'possible_episodes','isCn'])(code_number,[],False) 
+        return PathMeta(code_number, [],False,False,False,False)
     except Exception as e:
         raise e
 
@@ -193,7 +196,7 @@ G_cache_uncensored_conf = Cache_uncensored_conf()
 
 
 # ========================================================================是否为无码
-def is_uncensored(number) -> bool:
+def get_is_uncensored(number) -> bool:
     if re.match(
             r'[\d-]{4,}|\d{6}_\d{2,3}|(cz|gedo|k|n|red-|se)\d{2,4}|heyzo.+|xxx-av-.+|heydouga-.+|x-art\.\d{2}\.\d{2}\.\d{2}',
             number,
@@ -316,7 +319,7 @@ if __name__ == "__main__":
         try:
             n = get_number(True, filename)
             if n:
-                print('  [{0}] {2}# {1}'.format(n, filename, '#无码' if is_uncensored(n) else ''))
+                print('  [{0}] {2}# {1}'.format(n, filename, '#无码' if get_is_uncensored(n) else ''))
             else:
                 print(f'[-]Number return None. # {filename}')
         except Exception as e:
