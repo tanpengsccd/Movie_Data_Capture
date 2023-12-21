@@ -30,8 +30,10 @@ class Xcity(Parser):
 
     def queryNumberUrl(self, number):
         xcity_number = number.replace('-','')
+        target_url =  'https://xcity.jp/' + secrets.choice(['sitemap/','policy/','law/','help/','main/'])
+        print(target_url)
         query_result, browser = get_html_by_form(
-            'https://xcity.jp/' + secrets.choice(['sitemap/','policy/','law/','help/','main/']),
+            target_url,
             fields = {'q' : xcity_number.lower()},
             cookies=self.cookies, proxies=self.proxies, verify=self.verify,
             return_type = 'browser')

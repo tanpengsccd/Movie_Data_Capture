@@ -30,6 +30,7 @@ urllib3 = "==1.25.11"
 pydash = "*"
 pydantic = "*"
 fuckit = "*"
+mypy = "*"
 
 [dev-packages]
 

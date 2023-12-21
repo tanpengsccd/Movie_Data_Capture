@@ -25,10 +25,8 @@ class Caribpr(Parser):
 
     def search(self, number):
         self.number = number
-        if self.specifiedUrl:
-            self.detailurl = self.specifiedUrl
-        else:
-            self.detailurl = f'https://www.caribbeancompr.com/moviepages/{number}/index.html'
+        self.detailurl = self.specifiedUrl if self.specifiedUrl else f'https://www.caribbeancompr.com/moviepages/{number}/index.html'
+        print(self.detailurl)
         htmlcode = self.getHtml(self.detailurl)
         if htmlcode == 404 or 'class="movie-info"' not in htmlcode:
             return 404

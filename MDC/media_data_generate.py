@@ -207,13 +207,13 @@ def actor_photo_download(actors, save_dir, number):
 
 
 # 剧照下载成功，否则移动到failed
-def extrafanart_download(data, path, number, filepath, json_data=None):
+def extrafanart_download(data, path, number, filepath,extrafanart_name_without_ext, json_data=None):
     if config.getInstance().extrafanart_thread_pool_download():
-        return extrafanart_download_threadpool(data, path, number, json_data)
-    extrafanart_download_one_by_one(data, path, filepath, json_data)
+        return extrafanart_download_threadpool(data, path, number, extrafanart_name_without_ext, json_data)
+    extrafanart_download_one_by_one(data, path, filepath, extrafanart_name_without_ext, json_data)
 
 
-def extrafanart_download_one_by_one(data, path, filepath, json_data=None):
+def extrafanart_download_one_by_one(data, path, filepath,extrafanart_name_without_ext, json_data=None):
     tm_start = time.perf_counter()
     j = 1
     conf = config.getInstance()
@@ -221,7 +221,7 @@ def extrafanart_download_one_by_one(data, path, filepath, json_data=None):
     configProxy = conf.proxy()
     download_only_missing_images = conf.download_only_missing_images()
     for url in data:
-        jpg_filename = f'extrafanart-{j}.jpg'
+        jpg_filename = f'{extrafanart_name_without_ext}-{j}.jpg'
         jpg_fullpath = os.path.join(path, jpg_filename)
         if download_only_missing_images and not file_not_exist_or_empty(jpg_fullpath):
             continue
@@ -243,14 +243,14 @@ def extrafanart_download_one_by_one(data, path, filepath, json_data=None):
         print(f'[!]Extrafanart download one by one mode runtime {time.perf_counter() - tm_start:.3f}s')
 
 
-def extrafanart_download_threadpool(url_list, save_dir, number, json_data=None):
+def extrafanart_download_threadpool(url_list, save_dir, number,extrafanart_name_without_ext, json_data=None):
     tm_start = time.perf_counter()
     conf = config.getInstance()
     extrafanart_dir = Path(save_dir) / conf.get_extrafanart()
     download_only_missing_images = conf.download_only_missing_images()
     dn_list = []
     for i, url in enumerate(url_list, start=1):
-        jpg_fullpath = extrafanart_dir / f'extrafanart-{i}.jpg'
+        jpg_fullpath = extrafanart_dir / f'{extrafanart_name_without_ext}-{i}.jpg'
         if download_only_missing_images and not file_not_exist_or_empty(jpg_fullpath):
             continue
         dn_list.append((url, jpg_fullpath))
@@ -317,7 +317,7 @@ def image_download(cover, fanart_path, thumb_path, path, filepath, json_headers=
 
 
 def print_files(path, leak_word, c_word, naming_rule, part, cn_sub, json_data, filepath, tag, actor_list, liuchu,
-                uncensored, hack, hack_word, _4k, fanart_path, poster_path, thumb_path, iso):
+                uncensored, hack, hack_word, _4k, fanart_path, poster_path, thumb_path, extrafanart_paths, iso):
     
     conf = config.getInstance()
     title, studio, year, outline, runtime, director, actor_photo, release, number, cover, trailer, website, series, label = get_info(
@@ -381,6 +381,12 @@ def print_files(path, leak_word, c_word, naming_rule, part, cn_sub, json_data, f
                 
             print("  <poster>" + poster_path + "</poster>", file=code)
             print("  <thumb>" + thumb_path + "</thumb>", file=code)
+            if extrafanart_paths.__len__() > 0: 
+                # 该字段,emby jellyfin,plex都不显示,在kodi中不显示，但是会在kodi的userdata目录下生成一个extrafanart文件夹，里面是额外的fanart图片
+                print("  <fanart>", file=code)
+                for extrafanart_path in extrafanart_paths:
+                    print("  <thumb>" + extrafanart_path + "</thumb>", file=code)
+                print("  </fanart>", file=code)
             if not config.getInstance().jellyfin():  # jellyfin 不需要保存fanart
                 print("  <fanart>" + fanart_path + "</fanart>", file=code)
             try:
@@ -860,6 +866,8 @@ def generate(code: str, paths: list[PathMeta], oCC, specified_source=None, is_fa
     #同一个一个番号可能有多个文件,所以遍历处理
     for path_meta in paths:
         # =======================================================================初始化所需变量
+        # 影片名称: 即路径不含文件夹名和后缀 
+        movie_name  = Path(path_meta.path).stem
         number = corrected_code
         movie_path = path_meta.path
         part = path_meta.episode
@@ -885,9 +893,11 @@ def generate(code: str, paths: list[PathMeta], oCC, specified_source=None, is_fa
         cover = json_data.get('cover')
         ext = image_ext(cover)
 
-        fanart_path = f"fanart{ext}"
-        poster_path = f"poster{ext}"
-        thumb_path = f"thumb{ext}"
+        fanart_path = f"{movie_name}-fanart{ext}"
+        poster_path = f"{movie_name}-poster{ext}"
+        thumb_path = f"{movie_name}-thumb{ext}"
+        extrafanart_name_without_ext = f"{movie_name}-extrafanart"
+        extrafanart_paths = [ f"{extrafanart_name_without_ext}-{i+1}.jpg" for i,url in enumerate(json_data.get('extrafanart', []))]
         if config.getInstance().image_naming_with_number():
             fanart_path = f"{number}{leak_word}{c_word}{crack_word}-fanart{ext}"
             poster_path = f"{number}{leak_word}{c_word}{crack_word}-poster{ext}"
@@ -925,9 +935,9 @@ def generate(code: str, paths: list[PathMeta], oCC, specified_source=None, is_fa
                     # 下载剧照 data, path, filepath
                     if conf.is_extrafanart() and json_data.get('extrafanart'):
                         if 'headers' in json_data:
-                            extrafanart_download(json_data.get('extrafanart'), created_path, number, movie_path, json_data)
+                            extrafanart_download(json_data.get('extrafanart'), created_path, number, movie_path,extrafanart_name_without_ext, json_data)
                         else:
-                            extrafanart_download(json_data.get('extrafanart'), created_path, number, movie_path)
+                            extrafanart_download(json_data.get('extrafanart'), created_path, number, movie_path,extrafanart_name_without_ext)
 
                     # 下载演员头像 KODI .actors 目录位置
                     if conf.download_actor_photo_for_kodi():
@@ -957,7 +967,7 @@ def generate(code: str, paths: list[PathMeta], oCC, specified_source=None, is_fa
             # 最后输出.nfo元数据文件，以完成.nfo文件创建作为任务成功标志
             print_files(created_path, leak_word, c_word, json_data.get('naming_rule'), part, is_cn_subs, json_data, movie_path, tag,
                         json_data.get('actor_list'), is_leaked, is_uncensored, is_cracked, crack_word
-                        , is_4k, fanart_path, poster_path, thumb_path, is_iso)
+                        , is_4k, fanart_path, poster_path, thumb_path,extrafanart_paths, is_iso)
 
         elif conf.main_mode() == Main_Mode.Organizing:
             # 创建文件夹
@@ -995,9 +1005,9 @@ def generate(code: str, paths: list[PathMeta], oCC, specified_source=None, is_fa
                     # 下载剧照 data, path, filepath
                     if conf.is_extrafanart() and json_data.get('extrafanart'):
                         if 'headers' in json_data:
-                            extrafanart_download(json_data.get('extrafanart'), parent_path, number, movie_path, json_data)
+                            extrafanart_download(json_data.get('extrafanart'), parent_path, number, movie_path,extrafanart_name_without_ext, json_data)
                         else:
-                            extrafanart_download(json_data.get('extrafanart'), parent_path, number, movie_path)
+                            extrafanart_download(json_data.get('extrafanart'), parent_path, number, movie_path,extrafanart_name_without_ext)
 
                     # 下载演员头像 KODI .actors 目录位置
                     if conf.download_actor_photo_for_kodi():
@@ -1021,4 +1031,4 @@ def generate(code: str, paths: list[PathMeta], oCC, specified_source=None, is_fa
             print_files(parent_path, leak_word, c_word, json_data.get('naming_rule'), part, is_cn_subs, json_data, movie_path,
                         tag, json_data.get('actor_list'), is_leaked, path_meta.is_uncensored, is_cracked, crack_word, is_4k, fanart_path,
                         poster_path,
-                        thumb_path, is_iso)
+                        thumb_path,extrafanart_paths, is_iso)

@@ -15,10 +15,11 @@ import time
 import shutil
 import typing
 import pydash
+import website_parser
 import urllib3
 import signal
 import platform
-from ConfigModel import ConfigModel 
+from ConfigModel import ConfigModel
 from path_processor_JAV import PathMeta, PathNameProcessor
 import number_parser
 import config
@@ -37,7 +38,8 @@ from core import core_main, core_main_no_net_op, moveFailedFolder, debug_print
 
 # 更新版本号
 def check_update(local_version):
-    htmlcode = get_html("https://api.github.com/repos/yoshiko2/Movie_Data_Capture/releases/latest")
+    htmlcode = get_html(
+        "https://api.github.com/repos/yoshiko2/Movie_Data_Capture/releases/latest")
     data = json.loads(htmlcode)
     remote = int(data["tag_name"].replace(".", ""))
     local_version = int(local_version.replace(".", ""))
@@ -49,12 +51,16 @@ def check_update(local_version):
 
 
 def argparse_function(ver: str, conf: config.Config) -> typing.Tuple[str, str, str, str, bool, bool, str, str]:
-    parser = argparse.ArgumentParser(epilog=f"Load Config file '{conf.ini_path}'.")
-    parser.add_argument("file", default='', nargs='?', help="Single Movie file path.")
-    parser.add_argument("-p", "--path", default='', nargs='?', help="Analysis folder path.")
+    parser = argparse.ArgumentParser(
+        epilog=f"Load Config file '{conf.ini_path}'.")
+    parser.add_argument("file", default='', nargs='?',
+                        help="Single Movie file path.")
+    parser.add_argument("-p", "--path", default='',
+                        nargs='?', help="Analysis folder path.")
     parser.add_argument("-m", "--main-mode", default='', nargs='?',
                         help="Main mode. 1:Scraping 2:Organizing 3:Scraping in analysis folder")
-    parser.add_argument("-n", "--number", default='', nargs='?', help="Custom file number of single movie file.")
+    parser.add_argument("-n", "--number", default='', nargs='?',
+                        help="Custom file number of single movie file.")
     # parser.add_argument("-C", "--config", default='config.ini', nargs='?', help="The config file Path.")
     parser.add_argument("-L", "--link-mode", default='', nargs='?',
                         help="Create movie file link. 0:moving movie file, do not create link 1:soft link 2:try hard link first")
@@ -89,9 +95,12 @@ def argparse_function(ver: str, conf: config.Config) -> typing.Tuple[str, str, s
                         help="""Only show job list of files and numbers, and **NO** actual operation
 is performed. It may help you correct wrong numbers before real job.""")
     parser.add_argument("-v", "--version", action="version", version=ver)
-    parser.add_argument("-s", "--search", default='', nargs='?', help="Search number")
-    parser.add_argument("-ss", "--specified-source", default='', nargs='?', help="specified Source.")
-    parser.add_argument("-su", "--specified-url", default='', nargs='?', help="specified Url.")
+    parser.add_argument("-s", "--search", default='',
+                        nargs='?', help="Search number")
+    parser.add_argument("-ss", "--specified-source",
+                        default='', nargs='?', help="specified Source.")
+    parser.add_argument("-su", "--specified-url", default='',
+                        nargs='?', help="specified Url.")
 
     args = parser.parse_args()
 
@@ -127,7 +136,8 @@ is performed. It may help you correct wrong numbers before real job.""")
     if conf.main_mode() == config.Main_Mode.ScrapingInAnalysisFolder:
         no_net_op = args.no_network_operation
         if no_net_op:
-            conf.set_override("advenced_sleep:stop_counter=0;advenced_sleep:rerun_delay=0s;face:aways_imagecut=1")
+            conf.set_override(
+                "advenced_sleep:stop_counter=0;advenced_sleep:rerun_delay=0s;face:aways_imagecut=1")
 
     return args.file, args.number, args.logdir, args.regexstr, args.zero_op, no_net_op, args.search, args.specified_source, args.specified_url
 
@@ -246,12 +256,14 @@ def close_logfile(logdir: str):
     today = datetime.today()
     # 第一步，合并到日。3天前的日志，文件名是同一天的合并为一份日志
     for i in range(1):
-        txts = [f for f in log_dir.glob(r'*.txt') if re.match(r'^mdc_\d{8}T\d{6}$', f.stem, re.A)]
+        txts = [f for f in log_dir.glob(
+            r'*.txt') if re.match(r'^mdc_\d{8}T\d{6}$', f.stem, re.A)]
         if not txts or not len(txts):
             break
         e = [f for f in txts if '_err' in f.stem]
         txts.sort()
-        tmstr_3_days_ago = (today.replace(hour=0) - timedelta(days=3)).strftime("%Y%m%dT99")
+        tmstr_3_days_ago = (today.replace(hour=0) -
+                            timedelta(days=3)).strftime("%Y%m%dT99")
         deadline_day = f'mdc_{tmstr_3_days_ago}'
         day_merge = [f for f in txts if f.stem < deadline_day]
         if not day_merge or not len(day_merge):
@@ -267,11 +279,13 @@ def close_logfile(logdir: str):
                 pass
     # 第二步，合并到月
     for i in range(1):  # 利用1次循环的break跳到第二步，避免大块if缩进或者使用goto语法
-        txts = [f for f in log_dir.glob(r'*.txt') if re.match(r'^mdc_\d{8}$', f.stem, re.A)]
+        txts = [f for f in log_dir.glob(
+            r'*.txt') if re.match(r'^mdc_\d{8}$', f.stem, re.A)]
         if not txts or not len(txts):
             break
         txts.sort()
-        tmstr_3_month_ago = (today.replace(day=1) - timedelta(days=3 * 30)).strftime("%Y%m32")
+        tmstr_3_month_ago = (today.replace(day=1) -
+                             timedelta(days=3 * 30)).strftime("%Y%m32")
         deadline_month = f'mdc_{tmstr_3_month_ago}'
         month_merge = [f for f in txts if f.stem < deadline_month]
         if not month_merge or not len(month_merge):
@@ -289,7 +303,8 @@ def close_logfile(logdir: str):
     for i in range(1):
         if today.month < 4:
             break
-        mons = [f for f in log_dir.glob(r'*.txt') if re.match(r'^mdc_\d{6}$', f.stem, re.A)]
+        mons = [f for f in log_dir.glob(
+            r'*.txt') if re.match(r'^mdc_\d{6}$', f.stem, re.A)]
         if not mons or not len(mons):
             break
         mons.sort()
@@ -333,24 +348,28 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
     link_mode = G_conf.link_mode()
     file_type = G_conf.media_type().lower().split(",")
     trailerRE = re.compile(r'-trailer\.', re.IGNORECASE)
-    cliRE = re.compile(regexstr, re.IGNORECASE)  if isinstance(regexstr, str) and len(regexstr) else None
-    failed_list_txt_path = Path(G_conf.failed_folder()).resolve() / 'failed_list.txt'
+    cliRE = re.compile(regexstr, re.IGNORECASE) if isinstance(
+        regexstr, str) and len(regexstr) else None
+    failed_list_txt_path = Path(
+        G_conf.failed_folder()).resolve() / 'failed_list.txt'
     # 提取历史刮削失败的路径
     failed_set = set()
     if (G_conf.main_mode() == Main_Mode.ScrapingInAnalysisFolder or link_mode) and not G_conf.ignore_failed_list():
         try:
-            flist = failed_list_txt_path.read_text(encoding='utf-8').splitlines()
+            flist = failed_list_txt_path.read_text(
+                encoding='utf-8').splitlines()
             failed_set = set(flist)
             if len(flist) != len(failed_set):  # 检查去重并写回，但是不改变failed_list.txt内条目的先后次序，重复的只保留最后的
                 fset = failed_set.copy()
                 for i in range(len(flist) - 1, -1, -1):
                     fset.remove(flist[i]) if flist[i] in fset else flist.pop(i)
-                failed_list_txt_path.write_text('\n'.join(flist) + '\n', encoding='utf-8')
+                failed_list_txt_path.write_text(
+                    '\n'.join(flist) + '\n', encoding='utf-8')
                 assert len(fset) == 0 and len(flist) == len(failed_set)
         except:
             pass
     if not Path(source_folder).is_dir():
-        print('[-]Source folder not found: ',source_folder)
+        print('[-]Source folder not found: ', source_folder)
         return []
     total = []
     source = Path(source_folder).resolve()
@@ -376,9 +395,10 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
         is_sym = full_name.is_symlink()
         if G_conf.main_mode() != Main_Mode.ScrapingInAnalysisFolder and (is_sym or (
                 full_name.stat().st_nlink > 1 and not G_conf.scan_hardlink())):  # 短路布尔 符号链接不取stat()，因为符号链接可能指向不存在目标
-            continue  # 模式不等于3下跳过软连接和未配置硬链接刮削 
+            continue  # 模式不等于3下跳过软连接和未配置硬链接刮削
         # 调试用0字节样本允许通过，去除小于120MB的广告'苍老师强力推荐.mp4'(102.2MB)'黑道总裁.mp4'(98.4MB)'有趣的妹子激情表演.MP4'(95MB)'有趣的臺灣妹妹直播.mp4'(15.1MB)
-        movie_size = 0 if is_sym else full_name.stat().st_size  # 同上 符号链接不取stat()及st_size，直接赋0跳过小视频检测
+        # 同上 符号链接不取stat()及st_size，直接赋0跳过小视频检测
+        movie_size = 0 if is_sym else full_name.stat().st_size
         # if 0 < movie_size < 125829120:  # 1024*1024*120=125829120
         #     continue
         if cliRE and not cliRE.search(absf) or trailerRE.search(full_name.name):
@@ -391,12 +411,14 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
             elif nfo_skip_days > 0 and file_modification_days(nfo) <= nfo_skip_days:
                 skip_nfo_days_cnt += 1
                 if debug:
-                    print(f"[!]Skip movie by it's .nfo which modified within {nfo_skip_days} days: '{absf}'")
+                    print(
+                        f"[!]Skip movie by it's .nfo which modified within {nfo_skip_days} days: '{absf}'")
                 continue
         total.append(absf)
 
     if skip_failed_cnt:
-        print(f"[!]Skip {skip_failed_cnt} movies in failed list '{failed_list_txt_path}'.")
+        print(
+            f"[!]Skip {skip_failed_cnt} movies in failed list '{failed_list_txt_path}'.")
     if skip_nfo_days_cnt:
         print(
             f"[!]Skip {skip_nfo_days_cnt} movies in source folder '{source}' who's .nfo modified within {nfo_skip_days} days.")
@@ -423,7 +445,8 @@ def movie_lists(source_folder, regexstr: str) -> typing.List[str]:
     for f in rm_list:
         total.remove(f)
         if debug:
-            print(f"[!]Skip file successfully processed within {nfo_skip_days} days: '{f}'")
+            print(
+                f"[!]Skip file successfully processed within {nfo_skip_days} days: '{f}'")
     if len(rm_list):
         print(
             f"[!]Skip {len(rm_list)} movies in success folder '{success_folder}' who's .nfo modified within {nfo_skip_days} days.")
@@ -450,7 +473,8 @@ def rm_empty_folder(path):
     deleted = set()
     for current_dir, subdirs, files in os.walk(abspath, topdown=False):
         try:
-            still_has_subdirs = any(_ for subdir in subdirs if os.path.join(current_dir, subdir) not in deleted)
+            still_has_subdirs = any(_ for subdir in subdirs if os.path.join(
+                current_dir, subdir) not in deleted)
             if not any(files) and not still_has_subdirs and not os.path.samefile(path, current_dir):
                 os.rmdir(current_dir)
                 deleted.add(current_dir)
@@ -459,11 +483,7 @@ def rm_empty_folder(path):
             pass
 
 
-
-
-
-
-def get_numbers(paths: typing.List[str]) -> tuple[list[PathMeta],dict[str,list[PathMeta]]]:
+def get_numbers(paths: typing.List[str]) -> tuple[list[PathMeta], dict[str, list[PathMeta]]]:
     """提取对应路径的番号+集数,集数可能含C(中文字幕)但非分集"""
 
     def get_number(filepath, absolute_path=False):
@@ -476,65 +496,64 @@ def get_numbers(paths: typing.List[str]) -> tuple[list[PathMeta],dict[str,list[P
         name = filepath.upper()  # 转大写
         if absolute_path:
             name = name.replace('\\', '/')
-        #1. 移除干扰字段
+        # 1. 移除干扰字段
         name = PathNameProcessor.remove_distractions(name)
-        #2. 抽取文件路径中可能存在的尾部集数，和抽取尾部集数的后的文件路径
+        # 2. 抽取文件路径中可能存在的尾部集数，和抽取尾部集数的后的文件路径
         episode_suffix, name = PathNameProcessor.extract_suffix_episode(name)
-        #3. 抽取 文件路径中可能存在的 番号后跟随的集数 和 处理后番号
-        code_number, episode_behind_code,is_uncensored,is_cracked,is_leaked,is_cn_subs = PathNameProcessor.extract_code(name)
-        # 优先取尾部集数，无则取番号后的集数（几率低） 
+        # 3. 抽取 文件路径中可能存在的 番号后跟随的集数 和 处理后番号
+        code_number, episode_behind_code, is_uncensored, is_cracked, is_leaked, is_cn_subs = PathNameProcessor.extract_code(
+            name)
+        # 优先取尾部集数，无则取番号后的集数（几率低）
 
-        return PathMeta(path=filepath, code=code_number,possible_episodes=[episode_suffix,episode_behind_code],is_uncensored=is_uncensored,is_cracked=is_cracked,is_leaked=is_leaked,is_cn_subs=is_cn_subs)
+        return PathMeta(path=filepath, code=code_number, possible_episodes=[episode_suffix, episode_behind_code], is_uncensored=is_uncensored, is_cracked=is_cracked, is_leaked=is_leaked, is_cn_subs=is_cn_subs)
         # return namedtuple('R', ['code', 'possible_episodes','is_uncensored','is_cracked','is_leaked', 'is_cn_subs'])(code_number,[episode_suffix,episode_behind_code],is_uncensored,is_cracked,is_leaked,is_cn_subs)
-        
-    
+
     if G_ini_conf.common.movie_type == 1:
         # 如果是 JAV
         path_list = list(map((lambda x: get_number(x)), paths))
     else:
         # 否则都是通用识别逻辑
-        path_list = list(map((lambda x: number_parser.get_number_tp(x)), paths))
-    paths_by_code = {k: list(v) for k, v in groupby(path_list, key=lambda x: x.code)}
+        path_list = list(
+            map((lambda x: number_parser.get_number_tp(x)), paths))
+    paths_by_code = {k: list(v) for k, v in groupby(
+        path_list, key=lambda x: x.code)}
 
     # 目的: 找出分集是C 但实际是中文字幕标志的情况: 如果同code时, episode 有C无B集时 ,则为中文字幕视频 并非episode,  那么另一个可能的episode 就是真正集数. 如果找不到,则优先取一个episode
     # 实际只修改了 episode 和 is_cn_subs
-    
 
     for codeKey, itemList in paths_by_code.items():
-        
-        for i in itemList :
-         
+
+        for i in itemList:
+
             if 'C' in i.possible_episodes:   # 如果不是中文字幕视频, 可能有的集数字段有‘C’ 才处理
-                    
+
                 eps = copy.deepcopy(i.possible_episodes)
                 if G_ini_conf.Name_Rule.string_c_recognition_strategy == ConfigModel.NameRuleConfig.StringCRecognitionStrategy.auto:
                     # 找到 CnSusbtile 位置
-                    if (index_Cn_Ep := pydash.find_index(eps, lambda ep: ep == 'C' and not pydash.find(itemList, lambda x: 'B' in x.possible_episodes ))) > -1:
+                    if (index_Cn_Ep := pydash.find_index(eps, lambda ep: ep == 'C' and not pydash.find(itemList, lambda x: 'B' in x.possible_episodes))) > -1:
                         del eps[index_Cn_Ep]
                         i.is_cn_subs = True
                     # 可能的分集参数, 按顺位取
                     i.episode = eps[0] if len(eps) > 0 else None
                 elif G_ini_conf.Name_Rule.string_c_recognition_strategy == ConfigModel.NameRuleConfig.StringCRecognitionStrategy.part:
                     i.episode = 'C'
-                elif G_ini_conf.Name_Rule.string_c_recognition_strategy == ConfigModel.NameRuleConfig.StringCRecognitionStrategy.cn :
+                elif G_ini_conf.Name_Rule.string_c_recognition_strategy == ConfigModel.NameRuleConfig.StringCRecognitionStrategy.cn:
                     eps.remove('C')
                     i.episode = eps[0] if len(eps) > 0 else None
                     i.is_cn_subs = True
 
-            else: 
-                i.episode = i.possible_episodes[0] if len(i.possible_episodes) > 0 else None
-                
-                
+            else:
+                i.episode = i.possible_episodes[0] if len(
+                    i.possible_episodes) > 0 else None
 
-
-    return namedtuple('R',['path_list','paths_by_code'] ) (path_list,paths_by_code)
+    return namedtuple('R', ['path_list', 'paths_by_code'])(path_list, paths_by_code)
 
 
 # 生成数据并移动
 def create_data_and_move(movie_path: str, zero_op: bool, no_net_op: bool, oCC):
     """
     生成数据并移动
-    
+
     :param movie_path:路径
     :param zero_op:是否为 不操作
     :param no_net_op:是否为 无网络操作
@@ -542,8 +561,8 @@ def create_data_and_move(movie_path: str, zero_op: bool, no_net_op: bool, oCC):
     """
     # Normalized number, eg: 111xxx-222.mp4 -> xxx-222.mp4
     debug = config.getInstance().debug()
-    # 如果配置项 test_movie_list 
-    # ❤️获取番号核心处理❤️  
+    # 如果配置项 test_movie_list
+    # ❤️获取番号核心处理❤️
     n_number = get_number(debug, os.path.basename(movie_path))
     movie_path = os.path.abspath(movie_path)
 
@@ -591,9 +610,11 @@ def create_data_and_move_with_custom_number(file_path: str, custom_number, oCC, 
     conf = config.getInstance()
     file_name = os.path.basename(file_path)
     try:
-        print("[!] [{1}] As Number Processing for '{0}'".format(file_path, custom_number))
+        print("[!] [{1}] As Number Processing for '{0}'".format(
+            file_path, custom_number))
         if custom_number:
-            core_main(file_path, custom_number, oCC, specified_source, specified_url)
+            core_main(file_path, custom_number, oCC,
+                      specified_source, specified_url)
         else:
             print("[-] number empty ERROR")
         print("[*]======================================================")
@@ -603,11 +624,13 @@ def create_data_and_move_with_custom_number(file_path: str, custom_number, oCC, 
 
         if conf.link_mode():
             print("[-]Link {} to failed folder".format(file_path))
-            os.symlink(file_path, os.path.join(conf.failed_folder(), file_name))
+            os.symlink(file_path, os.path.join(
+                conf.failed_folder(), file_name))
         else:
             try:
                 print("[-]Move [{}] to failed folder".format(file_path))
-                shutil.move(file_path, os.path.join(conf.failed_folder(), file_name))
+                shutil.move(file_path, os.path.join(
+                    conf.failed_folder(), file_name))
             except Exception as err:
                 print('[!]', err)
 
@@ -645,15 +668,18 @@ def main(args: tuple) -> Path:
     if G_conf.debug():
         print('[+]Enable debug')
     if G_conf.link_mode() in (1, 2):
-        print('[!]Enable {} link'.format(('soft', 'hard')[G_conf.link_mode() - 1]))
+        print('[!]Enable {} link'.format(
+            ('soft', 'hard')[G_conf.link_mode() - 1]))
     if len(sys.argv) > 1:
         print('[!]CmdLine:', " ".join(sys.argv[1:]))
     print('[+]Main Working mode ## {}: {} ## {}{}{}'
           .format(*(G_conf.main_mode().value, G_conf.main_mode().name,
                     "" if not G_conf.multi_threading() else ", multi_threading on",
-                    "" if G_conf.nfo_skip_days() == 0 else f", nfo_skip_days={G_conf.nfo_skip_days()}",
-                    "" if G_conf.stop_counter() == 0 else f", stop_counter={G_conf.stop_counter()}"
-                    ) if not single_file_path else ('-', 'Single File', '', '', ''))
+                    "" if G_conf.nfo_skip_days(
+          ) == 0 else f", nfo_skip_days={G_conf.nfo_skip_days()}",
+              "" if G_conf.stop_counter(
+          ) == 0 else f", stop_counter={G_conf.stop_counter()}"
+          ) if not single_file_path else ('-', 'Single File', '', '', ''))
           )
     # 更新检查
     if G_conf.update_check():
@@ -665,18 +691,22 @@ def main(args: tuple) -> Path:
                 return ('https://raw.githubusercontent.com/yoshiko2/Movie_Data_Capture/master/MappingTable/' + f,
                         Path.home() / '.local' / 'share' / 'mdc' / f)
 
-            map_tab = (fmd('mapping_actor.xml'), fmd('mapping_info.xml'), fmd('c_number.json'))
+            map_tab = (fmd('mapping_actor.xml'), fmd(
+                'mapping_info.xml'), fmd('c_number.json'))
             for k, v in map_tab:
                 if v.exists():
                     if file_modification_days(str(v)) >= G_conf.mapping_table_validity():
                         print("[+]Mapping Table Out of date! Remove", str(v))
                         os.remove(str(v))
-            res = parallel_download_files(((k, v) for k, v in map_tab if not v.exists()))
+            res = parallel_download_files(
+                ((k, v) for k, v in map_tab if not v.exists()))
             for i, fp in enumerate(res, start=1):
                 if fp and len(fp):
-                    print(f"[+] [{i}/{len(res)}] Mapping Table Downloaded to {fp}")
+                    print(
+                        f"[+] [{i}/{len(res)}] Mapping Table Downloaded to {fp}")
                 else:
-                    print(f"[-] [{i}/{len(res)}] Mapping Table Download failed")
+                    print(
+                        f"[-] [{i}/{len(res)}] Mapping Table Download failed")
         except:
             print("[!]" + " WARNING ".center(54, "="))
             print('[!]' + '-- GITHUB CONNECTION FAILED --'.center(54))
@@ -684,7 +714,8 @@ def main(args: tuple) -> Path:
             print('[!]' + '& update the mapping table'.center(54))
             print("[!]" + "".center(54, "="))
             try:
-                etree.parse(str(Path.home() / '.local' / 'share' / 'mdc' / 'mapping_actor.xml'))
+                etree.parse(str(Path.home() / '.local' /
+                            'share' / 'mdc' / 'mapping_actor.xml'))
             except:
                 print('[!]' + "Failed to load mapping table".center(54))
                 print('[!]' + "".center(54, "="))
@@ -695,7 +726,8 @@ def main(args: tuple) -> Path:
     ccm = G_conf.cc_convert_mode()
     # 0: no convert, 1: t2s, 2: s2t
     try:
-        oCC = None if ccm == 0 else OpenCC('t2s.json' if ccm == 1 else 's2t.json')
+        oCC = None if ccm == 0 else OpenCC(
+            't2s.json' if ccm == 1 else 's2t.json')
     except:
         # some OS no OpenCC cpython, try opencc-python-reimplemented.
         # pip uninstall opencc && pip install opencc-python-reimplemented
@@ -713,7 +745,8 @@ def main(args: tuple) -> Path:
         print('[+]==================== Single File =====================')
         if custom_number == '':
             create_data_and_move_with_custom_number(single_file_path,
-                                                    get_number(G_conf.debug(), os.path.basename(single_file_path)), oCC,
+                                                    get_number(G_conf.debug(), os.path.basename(
+                                                        single_file_path)), oCC,
                                                     specified_source, specified_url)
         else:
             create_data_and_move_with_custom_number(single_file_path, custom_number, oCC,
@@ -732,16 +765,17 @@ def main(args: tuple) -> Path:
                 return movie_lists(folder_path, regexstr)
 
         movie_list = _get_movie_list()
-        
-        code_ep_paths,paths_by_code = get_numbers(movie_list)
-        print('| 根据路径文件名识别的番号信息,请确认识别的信息无误')
-        [print('|', i.path, '\n|    ','|📟', i.code,'📟|📚',i.episode,'📚 (', '💬' if i.is_cn_subs else '','🚰' if i.is_leaked else '','🛠️' if i.is_cracked else '' ,'🈚' if i.is_uncensored else '',')',sep='' ) for i in code_ep_paths]
-        print('|======================================================')
 
+        code_ep_paths, paths_by_code = get_numbers(movie_list)
+        print('| 根据路径文件名识别的番号信息,请确认识别的信息无误')
+
+        [print(f'|{i.path}\n|=====📟{i.code} 📚{i.episode} ({"💬" if i.is_cn_subs else ""}{"🚰" if i.is_leaked else ""}{"🛠️" if i.is_cracked else ""}{"🈚" if i.is_uncensored else ""} )') for i in code_ep_paths]
+        print('|======================================================')
 
         count = 0
         count_all = str(len(movie_list))
-        print('[+]Find', count_all, 'movies.', 'main_mode:', G_ini_conf.common.main_mode.name)
+        print('[+]Find', count_all, 'movies.', 'main_mode:',
+              G_ini_conf.common.main_mode.name)
         print('[*]======================================================')
 
         # 终端输出 '是否继续?, y 或者 enter 案件继续,其他键退出'
@@ -757,12 +791,13 @@ def main(args: tuple) -> Path:
             count_all = str(min(len(movie_list), stop_count))
         # 先获取遍历电影列表,提取不联网的影片信息, 比如: 分集,是否内嵌中文,是否泄漏版,是否去马赛克版
 
-        # 
-        if G_ini_conf.common.movie_type == 1: 
+        #
+        if G_ini_conf.common.movie_type == 1:
             # 如果是 JAV 使用 JAV定制逻辑, 识别信息 准确率会更高
-            for code,paths in paths_by_code.items():
-                media_data_generate.generate(code, paths, oCC, specified_source, specified_url)
-        
+            for code, paths in paths_by_code.items():
+                media_data_generate.generate(
+                    code, paths, oCC, specified_source, specified_url)
+
         else:
             # 原 通用逻辑
             for movie_path in movie_list:  # 遍历电影列表 交给core处理
@@ -776,7 +811,8 @@ def main(args: tuple) -> Path:
                 if count >= stop_count:
                     print("[!]Stop counter triggered!")
                     break
-                sleep_seconds = random.randint(G_conf.sleep(), G_conf.sleep() + 2)
+                sleep_seconds = random.randint(
+                    G_conf.sleep(), G_conf.sleep() + 2)
                 time.sleep(sleep_seconds)
 
     if G_conf.del_empty_folder() and not zero_op:
@@ -843,12 +879,14 @@ if __name__ == '__main__':
             try:
                 # 开始处理 ❤️
                 logfile = main(args)
-                (numberOfScaned, numberOfProcessed, numberOfSuccess) = resultTuple = tuple(getResultNumbers(logfile))
+                (numberOfScaned, numberOfProcessed, numberOfSuccess) = resultTuple = tuple(
+                    getResultNumbers(logfile))
                 if all(isinstance(v, int) for v in resultTuple):
                     # 未处理的个数
                     numberOfNotProcessed = numberOfScaned - numberOfProcessed
                     # 处理用时
-                    processTime = timedelta(seconds=time.time() - app_start_time)
+                    processTime = timedelta(
+                        seconds=time.time() - app_start_time)
                     print(
                         f'All movies:{numberOfScaned}  processed:{numberOfProcessed}  successes:{numberOfSuccess}  remain:{numberOfNotProcessed}' +
                         '  Elapsed time {}'.format(
@@ -872,4 +910,5 @@ if __name__ == '__main__':
 
     if not G_ini_conf.common.auto_exit:
         if sys.platform == 'win32':
-            input("Press enter key exit, you can check the error message before you exit...")
+            input(
+                "Press enter key exit, you can check the error message before you exit...")

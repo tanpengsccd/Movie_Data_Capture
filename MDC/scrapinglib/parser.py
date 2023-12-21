@@ -81,10 +81,7 @@ class Parser:
         4. 返回 result
         """
         self.number = number
-        if self.specifiedUrl:
-            self.detailurl = self.specifiedUrl
-        else:
-            self.detailurl = self.queryNumberUrl(number)
+        self.detailurl = self.specifiedUrl if self.specifiedUrl else self.queryNumberUrl(number)
         print('[+]sourceURL:',self.detailurl)
         if not self.detailurl:
             return 404

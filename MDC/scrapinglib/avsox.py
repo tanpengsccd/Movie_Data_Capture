@@ -29,6 +29,7 @@ class Avsox(Parser):
             self.number = number
         qurySiteTree = self.getHtmlTree('https://tellme.pw/avsox')
         site = self.getTreeElement(qurySiteTree, '//div[@class="container"]/div/a/@href') # 获取最新网址
+        print(site + '/cn/search/' + number)
         self.searchtree = self.getHtmlTree(site + '/cn/search/' + number)
         result1 = self.getTreeElement(self.searchtree, '//*[@id="waterfall"]/div/a/@href')
         if result1 == '' or result1 == 'null' or result1 == 'None' or result1.find('movie') == -1:

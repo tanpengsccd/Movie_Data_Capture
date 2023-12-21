@@ -82,6 +82,7 @@ class Javdb(Parser):
 
     def queryNumberUrl(self, number):
         javdb_url = 'https://' + self.dbsite + '.com/search?q=' + number + '&f=all'
+        print(javdb_url)
         try:
             resp = self.session.get(javdb_url)
         except Exception as e:

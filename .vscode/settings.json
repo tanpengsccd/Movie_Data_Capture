@@ -1,4 +1,28 @@
 {
+    "cSpell.words": [
+        "Avsox",
+        "caribpr",
+        "customrating",
+        "fanart",
+        "fuckit",
+        "heydouga",
+        "heyzo",
+        "mpaa",
+        "originaltitle",
+        "pydantic",
+        "pydash",
+        "releasedate",
+        "rmvb",
+        "sorttitle"
+    ],
+
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.autopep8",
+
+        // "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true
+      },
     // 设置vscode 代理环境
-    // "http.proxy": "http://op.local:7890"
+    "http.proxy": "http://op.local:7890",
+    "mypy.runUsingActiveInterpreter": true
 }

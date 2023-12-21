@@ -139,7 +139,7 @@ class Scraping:
                 except Exception as e:
                     if config.getInstance().debug():
                         print(e)
-                    # json_data = self.func_mapping[source](number, self)
+                # json_data = self.func_mapping[source](number, self)
                 # if any service return a valid return, break
                 if self.get_data_state(json_data):
                     if self.debug:
