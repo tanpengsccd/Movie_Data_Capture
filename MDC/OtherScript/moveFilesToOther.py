@@ -65,7 +65,7 @@ def main(source_dir, target_dir, whitelist):
 
 
 # 使用示例
-# 白名单的
+# 白名单的 不移动
 whitelist = ['已刮', '已处理']
 
 main('/mnt/dsm/volume5/v3/Japan/oganized',
