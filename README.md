@@ -1,5 +1,5 @@
 # 来源
-此项目fork自 https://github.com/yoshiko2/Movie_Data_Capture ,最后的开源代码大概到版本 6.6.7 . 从版本 7.0 开始 原项目不在开源,并且移除了历史源码. 但是由于我也对Python 比较感兴趣,想学习学习,就fork了一份,修修改改.
+此项目fork自 https://github.com/yoshiko2/Movie_Data_Capture ,最后的开源代码大概到版本 6.6.7 . 从版本 7.0 开始 原项目已经商业化,且不在开源,并移除了历史源码. 但是由于我也对Python 比较感兴趣,想学习学习,就fork了一份,修修改改.
 # 项目改动 
 ## 暂不可用项
 1. 只能以源码方式运行.适配 Linux版本 Python3.10 ,Win 或者其它平台有问题,可以提issue,然后等待好心人贡献源码.
