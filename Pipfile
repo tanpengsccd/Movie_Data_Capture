@@ -33,6 +33,9 @@ fuckit = "*"
 mypy = "*"
 selenium = "*"
 ddddocr = "*"
+loguru = "*"
+webdriver-manager = "*"
+cd = "*"
 
 [dev-packages]
 
