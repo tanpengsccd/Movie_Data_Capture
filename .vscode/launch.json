@@ -6,7 +6,7 @@
     "configurations": [
         {
             "name": "Movie_Data_capture",
-            "type": "python",
+            "type": "debugpy",
             "request": "launch",
             "console": "integratedTerminal",
             "env": {
@@ -14,9 +14,10 @@
             },
             "program": "${workspaceFolder}/MDC/__init__.py",
             // "args": ["-p","/mnt/dsm/volume5/v3/Japan/failed/","-d","1"],
-            "args": ["-d","1"],
-            
-            
+            "args": [
+                "-d",
+                "1"
+            ],
             // "program1": "${workspaceFolder}/WebCrawler/javbus.py",
             // "program2": "${workspaceFolder}/WebCrawler/javdb.py",
             // "program3": "${workspaceFolder}/WebCrawler/xcity.py",
@@ -32,6 +33,23 @@
             // "args4": ["-gic1", "-d0", "-m3", "-o", "avlog", "-p", "I:/output"],
             // "args5": ["-gic1", "-d0", "-m1", "-o", "avlog", "-p", "J:/Downloads"],
             // "args6": ["-z", "-o", "J:/log"]
+        },
+        {
+            "name": "MDCR debug",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "MDCS/__main__.py",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python: Scrapy",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/MDCS/main.py",
+            "console": "integratedTerminal",
+            "justMyCode": false, // 设置为 false 允许调试库代码
+            "args": [],
+            "cwd": "${workspaceFolder}/MDCS"
         }
     ]
 }

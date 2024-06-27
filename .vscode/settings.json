@@ -7,7 +7,9 @@
         "fuckit",
         "heydouga",
         "heyzo",
+        "loguru",
         "lxml",
+        "MDCNG",
         "mpaa",
         "originaltitle",
         "pydantic",
@@ -16,13 +18,11 @@
         "rmvb",
         "sorttitle"
     ],
-
     "[python]": {
         "editor.defaultFormatter": "ms-python.autopep8",
-
         // "editor.defaultFormatter": "ms-python.black-formatter",
         "editor.formatOnSave": true
-      },
+    },
     // 设置vscode 代理环境
     "http.proxy": "http://op.local:7890",
     "mypy.runUsingActiveInterpreter": true

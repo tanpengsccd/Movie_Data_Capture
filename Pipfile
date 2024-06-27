@@ -36,8 +36,13 @@ ddddocr = "*"
 loguru = "*"
 webdriver-manager = "*"
 cd = "*"
+scrapy = "*"
+mysql-connector-python = "*"
+install = "*"
+pyyaml = "*"
 
 [dev-packages]
+ipykernel = "*"
 
 [requires]
 python_version = "3.10"
