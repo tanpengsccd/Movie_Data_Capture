@@ -3,7 +3,7 @@
 import re
 import scrapy
 from helper.loguru_config import logu
-
+from helper.global_config import config
 #
 
 # 笔记📒 可单独 执行 该 spider :  scrapy crawl javdb -O javdb.json
@@ -17,6 +17,35 @@ class JavdbSpider(scrapy.Spider):
     def __init__(self, start_url=None, *args, **kwargs):
         super(JavdbSpider, self).__init__(*args, **kwargs)
         self.start_urls = [start_url] if start_url else ['https://javdb.com/v/Yn4bz']
+    # 定制 start_requests 方法,同名key优先级会高于setting.py里的配置.
+    # 注入cookies
+
+    def start_requests(self):
+        # 必须是中文(只有繁体) 才能匹配到电影数据
+        headers = {
+            "Host": "javdb.com",
+            "Connection": "keep-alive",
+            "Pragma": "no-cache",
+            "Cache-Control": "no-cache",
+            "sec-ch-ua": '"Google Chrome";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
+            "sec-ch-ua-mobile": "?0",
+            "sec-ch-ua-platform": "macOS",
+            "DNT": "1",
+            "Upgrade-Insecure-Requests": "1",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+            "Sec-Fetch-Site": "none",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-User": "?1",
+            "Sec-Fetch-Dest": "document",
+            # "Accept-Encoding": "gzip, deflate, br, zstd", #开了会乱码 scrapy 似乎不能自动处理 gzip解压缩
+            "Accept-Language": "zh-CN,zh;q=0.9,zh-TW;q=0.6,ja;q=0.5,en-US;q=0.8,en;q=0.7",
+
+        }
+        _default_cookies = {'locale': 'zh', }
+        cookies = {**config.javdb.cookies, **_default_cookies}
+        for url in self.start_urls:
+            yield scrapy.Request(url, headers=headers, cookies=cookies, callback=self.parse)
 
     def parse(self, response):
         LOGGER = logu(__name__)

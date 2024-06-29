@@ -102,7 +102,7 @@ COOKIES_ENABLED = True
 
 # Override the default request headers:
 DEFAULT_REQUEST_HEADERS = {
-    "Host": "javdb.com",
+    # "Host": "javdb.com",
     "Connection": "keep-alive",
     "Pragma": "no-cache",
     "Cache-Control": "no-cache",
@@ -118,7 +118,6 @@ DEFAULT_REQUEST_HEADERS = {
     "Sec-Fetch-User": "?1",
     "Sec-Fetch-Dest": "document",
     # "Accept-Encoding": "gzip, deflate, br, zstd", #开了会乱码 scrapy 似乎不能自动处理 gzip解压缩
-    "Accept-Language": "zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7,zh-TW;q=0.6,ja;q=0.5",
-    "Cookie": "list_mode=h; theme=auto; locale=zh; over18=1; _jdb_session=pnpzddALy%2FrzA%2BN5J%2B7O%2BkN%2F%2FKmA4U52hZByeoEgFBfpcg8gKE1SloJVJXLVbBDphneUtYooreqsiZvHpA5mCro0l5xmnbPeMeFRXBjCqYkBT2NXwPG4HWcYYgaaBN0wAbfGecRo1awfTo%2FBSQ8NbLTGa28ouGY0i%2Fu%2FnLloWAW%2BDaga%2FTCEDtM1PEbzCAMBOJIBgd6ewRTHv%2F6GX2%2Bby2jnkNrvYvZRiE5WK44xPieXhP%2FF%2FEEiwvUM0nlXz58HNaUTIkYfg4avqhW6kAR1I9eVSbdenWw0EtQve5Wp2dhdY5nfsTEkZLMp--P4Yc19OU1%2FlIX6%2Ft--d%2B8YSusPAVqiPrvvmDNNdw%3D%3D; cf_clearance=tO7VcHnnM1IVMhVysN6hZnkhikWE7skPzcuKyZl3BzA-1719484800-1.0.1.1-MKZjrFb5UH2ILgvkiQn_ixuRV1gim95P7zGtXBLLISQGA4lTb0yrCwVUuuOpSI_7dqwim6.8m1SaoaenfIzXtQ",
+    "Accept-Language": "zh-CN,zh;q=0.9,zh-TW;q=0.6,ja;q=0.5,en-US;q=0.8,en;q=0.7",
 
 }  # 添加或修改 User-Agent 头

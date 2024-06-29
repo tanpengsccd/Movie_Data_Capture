@@ -10,7 +10,7 @@ def main():
     LOGGER = logu(__name__)
     LOGGER.info(f'开始运行')
     # TODO 读取配置 再设置完配置后 保存配置
-    LOGGER.info(config['source_dir'])
+    LOGGER.info(config.common.main_mode)
     # 读取文件列表
     # 遍历列表的路径
     # 1. 提取番号
