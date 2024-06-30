@@ -43,7 +43,7 @@ class JavdbSpider(scrapy.Spider):
 
         }
         _default_cookies = {'locale': 'zh', }
-        cookies = {**config.javdb.cookies, **_default_cookies}
+        cookies = {**config.scrape.javdb.cookies, **_default_cookies}
         for url in self.start_urls:
             yield scrapy.Request(url, headers=headers, cookies=cookies, callback=self.parse)
 
