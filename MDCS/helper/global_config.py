@@ -27,12 +27,23 @@ class ConfigModel(BaseModel):
 
         # 数据源目录:1. 目录下必须含有视频文件 2.视频文件文件路径必须有有番号或者电影名  例如:该文件夹有文件‘ABP-001/a.mp4’:合法 ,该文件夹有文件'a.mp4': 不合法.
         source_dir: str = './'
+        file_name_suffixes: List[str] = ["mov", "mp4",  "mkv", "avi", "wmv", "flv", "rmvb", "rm", "ts", "m2ts", "iso",
+                                         "3gp", "mpeg", "mpg", "m4v", "webm", "ogv", "mts", "m2t", "mxf", "roq", "nsv", "f4v", "f4p", "f4a", "f4b"]
+        """要检索的视频文件后缀名"""
         # 元文件目录: 刮削产生的素材文件存在此(不含nfo),如封面图片
         metadata_dir: str = './metadata'
         # 忽略路径:
         ignore_dirs: List[str] = ['.git', '.idea', '.vscode', 'node_modules', 'dist', 'build', 'docs', 'logs', 'tmp']
         # 数据库 uri 如 mysql://avnadmin:AVNS_XXXX@aiven-leonardosccd-ec6b.j.aivencloud.com:27840/defaultdb?ssl-mode=REQUIRED
         database_uri: str = None
+
+        @field_validator('file_name_suffixes', mode="before")
+        @classmethod
+        def parse_file_name_suffixes(cls, v: str) -> List[str]:
+            """解析文件后缀名字符串"""
+            if v == '':
+                raise ValueError("检索常用视频后缀请注释file_name_suffixes 配置行,否则请至少为 file_name_suffixes 指定一个后缀名")
+            return [item.strip() for item in v.split(',')]
 
         # 定制main_mode 字段 的验证器(解析器) , mode 默认是after 意思先按照 类型 解析,然后才会进这个 自定义的验证器
         # @field_validator('main_mode', mode='before')
@@ -58,8 +69,8 @@ class ConfigModel(BaseModel):
         class JavdbConfig(BaseModel):
             cookies: dict = {}
 
-            @field_validator('cookies', mode='before')
-            @classmethod
+            @ field_validator('cookies', mode='before')
+            @ classmethod
             def parse_cookie(cls, cookie_str: str):
                 """解析cookie字符串"""
                 cookie_dict = {}
@@ -79,8 +90,15 @@ class ConfigModel(BaseModel):
         """ 模式
         direct:  素材(nfo,封面图)直接移动到影片同级路径
         """
+
+    class Test(BaseModel):
+        is_enabled: bool = False
+        simulate_file_list_path: str = None
+
     index: IndexConfig
     scrape: Scrape
+    organize: Organize
+    test: Test
 
 # --------------------------------以上是定义模型------------------------------
 

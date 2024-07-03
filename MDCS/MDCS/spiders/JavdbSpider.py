@@ -21,7 +21,7 @@ class JavdbSpider(scrapy.Spider):
     # 注入cookies
 
     def start_requests(self):
-        # 必须是中文(只有繁体) 才能匹配到电影数据
+        # 从 实际浏览器 读取的 header
         headers = {
             "Host": "javdb.com",
             "Connection": "keep-alive",
@@ -40,9 +40,10 @@ class JavdbSpider(scrapy.Spider):
             "Sec-Fetch-Dest": "document",
             # "Accept-Encoding": "gzip, deflate, br, zstd", #开了会乱码 scrapy 似乎不能自动处理 gzip解压缩
             "Accept-Language": "zh-CN,zh;q=0.9,zh-TW;q=0.6,ja;q=0.5,en-US;q=0.8,en;q=0.7",
-
         }
+        # 必须是中文(只有繁体) 才能匹配到电影数据
         _default_cookies = {'locale': 'zh', }
+
         cookies = {**config.scrape.javdb.cookies, **_default_cookies}
         for url in self.start_urls:
             yield scrapy.Request(url, headers=headers, cookies=cookies, callback=self.parse)
