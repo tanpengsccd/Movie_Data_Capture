@@ -38,24 +38,24 @@ class Movie(pydantic.BaseModel):
     """中文字幕"""
 
 
-@dataclass
-class PathMeta:
-    path: str
-    """路径"""
-    code: str = None
-    """番号"""
-    possible_episodes: list[str] = field(default_factory=lambda: [])
-    """可能的集数,过渡用,最终集数使用episode"""
-    episode: str = None
-    """集数"""
-    is_uncensored: bool = False
-    """ 是否无码 """
-    is_cracked: bool = False
-    """ 是否破解 """
-    is_leaked: bool = False
-    """ 是否流出"""
-    is_cn_subs: bool = False
-    """ 是否中字"""
+# @dataclass
+# class PathMeta:
+#     path: str
+#     """路径"""
+#     code: str = None
+#     """番号"""
+#     possible_episodes: list[str] = field(default_factory=lambda: [])
+#     """可能的集数,过渡用,最终集数使用episode"""
+#     episode: str = None
+#     """集数"""
+#     is_uncensored: bool = False
+#     """ 是否无码 """
+#     is_cracked: bool = False
+#     """ 是否破解 """
+#     is_leaked: bool = False
+#     """ 是否流出"""
+#     is_cn_subs: bool = False
+#     """ 是否中字"""
 
 
 class PathNameProcessor:

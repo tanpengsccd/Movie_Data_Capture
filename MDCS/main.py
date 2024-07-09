@@ -13,7 +13,9 @@ def main():
     LOGGER.info(config.scrape.javdb.cookies)
 
     # index: 只读操作,  读取文件列表 , 遍历列表的路径 , 提取番号,存入 数据库(sqlite/mysql5.7)
+
     index_main.main()  # 以后考虑作为 subprocess 独立运行
+
     # scrape 刮削: 写, 查询编号 ,提取页面信息nfo, 下载metadata(图片)
     # organize 整理: 删,写,按演员分类/按系列分类,封面添加 tag
 

@@ -91,6 +91,10 @@ class ConfigModel(BaseModel):
         direct:  素材(nfo,封面图)直接移动到影片同级路径
         """
 
+    class Database(BaseModel):
+        """数据库配置"""
+        uri: str = "sqlite:///sqlite/mdcs.db"
+
     class Test(BaseModel):
         is_enabled: bool = False
         simulate_file_list_path: str = None
@@ -98,6 +102,7 @@ class ConfigModel(BaseModel):
     index: IndexConfig
     scrape: Scrape
     organize: Organize
+    database: Database
     test: Test
 
 # --------------------------------以上是定义模型------------------------------

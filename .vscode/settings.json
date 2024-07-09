@@ -10,13 +10,17 @@
         "loguru",
         "lxml",
         "MDCNG",
+        "mdcs",
         "mpaa",
         "originaltitle",
         "pydantic",
         "pydash",
         "releasedate",
         "rmvb",
-        "sorttitle"
+        "sessionmaker",
+        "sorttitle",
+        "sqlalchemy",
+        "sqlmodel"
     ],
     "[python]": {
         "editor.defaultFormatter": "ms-python.autopep8",

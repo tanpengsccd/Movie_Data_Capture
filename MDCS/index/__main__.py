@@ -1,5 +1,6 @@
 
 import os
+from helper import sql_helper
 from helper.global_config import config
 from .path_index import movie_lists, get_numbers
 
@@ -39,6 +40,8 @@ def main():
     if not input('[?]继续? ( ‘y’或者直接回车继续, 其他任意案件退出): ') in ('', 'y'):
         print('[!]Exit.')
         os._exit(0)
+    # 写入sql数据库
+    sql_helper.insert_path_meta_list(code_ep_paths)
 
     # 获取停止计数,用于限制连续处理的文件数量
     # stop_count = G_conf.stop_counter()

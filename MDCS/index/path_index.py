@@ -8,7 +8,8 @@ from typing import List
 
 import pydash
 from helper.global_config import config
-from .path_processor_JAV import PathMeta, PathNameProcessor
+from .path_processor_JAV import PathNameProcessor
+from helper.sql_helper import PathMeta
 # 获取待处理文件列表: 会按配置规则过滤不相关文件,新增失败文件列表跳过处理，及.nfo修改天数跳过处理，提示跳过视频总数，调试模式(-g)下详细被跳过文件，跳过小广告
 
 
