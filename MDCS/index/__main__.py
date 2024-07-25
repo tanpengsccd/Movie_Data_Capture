@@ -42,7 +42,6 @@ def main():
         os._exit(0)
     # 写入sql数据库
     sql_helper.insert_path_meta_list(code_ep_paths)
-
     # 获取停止计数,用于限制连续处理的文件数量
     # stop_count = G_conf.stop_counter()
     # if stop_count < 1:

@@ -1,7 +1,7 @@
 import json
-from typing import List
+from typing import List, Optional
 
-from sqlmodel import Relationship, SQLModel, Field, create_engine, Column, JSON
+from sqlmodel import Relationship, SQLModel, Field, create_engine, Column, JSON, Session, select
 from datetime import datetime, timedelta, timezone
 from helper.loguru_config import logu
 
@@ -26,11 +26,11 @@ class PathMeta(SQLModel, table=True):
 
     path: str = Field(unique=True)
     """路径"""
-    code: str = None
+    code: str | None = None
     """番号"""
     possible_episodes: List[str] = Field(default=[], sa_column=Column(JSON))
     """可能的集数,过渡用,最终集数使用episode"""
-    episode: str = None
+    episode: Optional[str] = None
     """集数"""
     is_uncensored: bool = False
     """ 是否无码 """
@@ -52,13 +52,27 @@ SQLModel.metadata.create_all(engine)
 
 
 def insert_path_meta_list(pathList: List[PathMeta]):
-    with SQLModel.Session(engine) as session:
+    with Session(engine) as session:
         index = Index()
         session.add(index)
         session.flush()  # 刷新会话，获取 index 的 ID
-        map(lambda path_meta: setattr(path_meta, 'index_id', index.id), pathList)  # 设置 index_id
-        # 批量添加 PathMeta 对象
-        session.add_all(pathList)
-        session.commit()  # 提交会话
 
-    LOGGER.info(f"索引路径信息已写入数据库")
+        # 批量查询已存在的路径
+        existing_paths = {p.path for p in session.exec(select(PathMeta)).all()}
+
+        new_path_metas = []
+        for path_meta in pathList:
+            if path_meta.path in existing_paths:
+                LOGGER.warning(f"跳过插入已存在的文件 {path_meta.path} ")
+            else:
+                path_meta.index_id = index.id
+                new_path_metas.append(path_meta)
+                existing_paths.add(path_meta.path)  # 更新已存在的路径集合
+
+        # 批量插入新的路径
+        if new_path_metas:
+            session.add_all(new_path_metas)
+            session.commit()  # 提交会话
+            LOGGER.info(f"索引完毕:索引路径信息已写入数据库")
+        else:
+            LOGGER.info("索引完毕:没有新路径被添加")

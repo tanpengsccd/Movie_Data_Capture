@@ -11,6 +11,7 @@
         "lxml",
         "MDCNG",
         "mdcs",
+        "metas",
         "mpaa",
         "originaltitle",
         "pydantic",
